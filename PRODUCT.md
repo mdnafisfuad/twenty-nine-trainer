@@ -1,0 +1,61 @@
+# Product
+
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+web
+
+## Users
+
+Casual Twenty-Nine players practising alone, on a mix of phones and desktops. They already know the card game's shape — partnerships, bidding, trump — and want repetition and feedback rather than a beginner tutorial.
+
+## Product Purpose
+
+A local-first Twenty-Nine practice table with three bots, a live coach, and a post-hand review. Success is a player who can make a confident decision within seconds, understand why it was right or wrong, and start the next hand without friction.
+
+## Positioning
+
+The coach reasons only from the player's own hand and public play — no hidden-card cheating — and combines deterministic visible-card rules with an optional Monte Carlo sampler running locally in a Web Worker. A neighbouring trainer could copy the rules, but not the fair-information model plus card-specific reasoning at the moment of decision.
+
+## Operating Context
+
+Browser only: no account, backend, or API key. One session covers the deal, auction, trump selection, eight tricks, score, and review; statistics persist in local storage. Sessions are short and solo, often on a phone in portrait, sometimes on a laptop with the coach open.
+
+## Capabilities and Constraints
+
+- Four players in fixed partnerships; the human is South.
+- Simplified classic auction: J > 9 > A > 10 > K > Q > 8 > 7; J = 3, 9 = 2, A/10 = 1; minimum bid 16.
+- Four-card opening deal, auction, trump chosen from the opening four (or the seventh-card option), second deal, and a hidden trump revealed on the first void.
+- Optional royal pair (K+Q of trump), seventh-card trump, reverse (no-trump ranking flip), double/redouble, and last-trick bonus; each can be switched off in Practice settings.
+- The completed auction pauses with a Continue button before the declarer chooses the contract.
+- Every completed trick pauses on the table until the player continues, so the four cards can be read before the next lead.
+- The table carries physical objects: a card-stack match scoreboard, a face-down trump card that flips when revealed, and seat chips with card fans instead of status sentences.
+- Coach advice is kept as a per-hand history that can be stepped through with previous/next controls.
+- Single-hand declarations and the Bangladesh auction sequence are not implemented.
+- The live coach may use only visible information; the deep evaluator receives sanitized state and runs in a Web Worker.
+- Bots use partner-aware deterministic bidding and determinized Monte Carlo card search; once the mode is public and four or fewer tricks remain, each sampled deal is solved exactly with double-dummy minimax. Bot search is sanitized before sampling, so it cannot see the real hidden hands.
+- The coach, hints, card reading, and model panels can be turned off from the top bar or settings.
+- Static-deployable (Cloudflare Pages) with session stats and rule preferences stored locally.
+
+## Brand Commitments
+
+The dark green club-table ground and lime accent are the established identity and must be evolved, not replaced (confirmed by the user). Keep the "Twenty-Nine Trainer" name and the plain-spoken coaching voice.
+
+## Evidence on Hand
+
+- `README.md` documents the implemented rules, evaluator, and Cloudflare Pages deployment.
+- `src/game.ts` is the rules authority; `src/coach.ts` is the visible-information coach; `src/ai/evaluator.ts` is the sampler.
+- No testimonials, customers, benchmarks, or commercial claims exist. Do not invent any.
+
+## Product Principles
+
+1. The next action is the loudest thing on screen.
+2. Every coaching claim names the visible evidence behind it.
+3. Save explanation for after the decision when the hand is over.
+4. Never use hidden information to judge a move.
+5. Practice resumes in one tap.
+
+## Accessibility & Inclusion
+
+The user explicitly asked for larger, more readable type and better accessibility. Target: 16px body text, 44px minimum touch targets, visible keyboard focus, reduced-motion support, state conveyed by more than colour, and layouts that hold from 320px to 1720px.

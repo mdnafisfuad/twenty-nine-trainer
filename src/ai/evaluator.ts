@@ -1,7 +1,9 @@
 import {
-  bestTrump,
+  bidCeiling,
   chooseBotCard,
-  legalCards,
+  chooseBotTrump,
+  continueAfterTrick,
+  legalCardsFor,
   playCard,
   SUITS,
   RANKS,
@@ -13,6 +15,7 @@ import {
   type Suit,
   type Team,
 } from '../game'
+import { evaluateEndgameCandidate } from './endgame'
 
 export interface MoveEstimate {
   cardId: string
@@ -100,15 +103,20 @@ function publicPlays(state: GameState) {
  * the player's hand and public play history.
  */
 export function sanitizeStateForEvaluation(input: GameState, player = 0): GameState {
-  const knowsTrump = input.trumpRevealed || input.bidder === player
+  const knowsMode = input.trumpRevealed || input.bidder === player
   return {
     ...input,
     hands: input.hands.map((hand, index) => index === player ? [...hand] : []),
     initialHands: null,
     deck: [],
-    trumpSuit: knowsTrump ? input.trumpSuit : null,
+    trumpSuit: knowsMode ? input.trumpSuit : null,
+    reverse: knowsMode ? input.reverse : false,
+    indicatorSuit: knowsMode ? input.indicatorSuit : null,
+    seventhCard: input.bidder === player ? input.seventhCard : null,
+    pausedTrick: null,
     decisions: [],
     review: null,
+    bidRecords: [],
     log: [...input.log],
   }
 }
@@ -127,25 +135,35 @@ export function stateFromDecision(decision: DecisionRecord): GameState {
     highBid: decision.highBid,
     bidder: decision.bidder,
     consecutivePasses: 0,
+    auctionComplete: false,
     trumpSuit: decision.knownTrumpSuit,
     trumpRevealed: decision.trumpRevealed,
+    reverse: decision.knownReverse,
+    indicatorSuit: decision.knownReverse ? decision.indicatorSuit : null,
+    seventhCard: decision.seventhCard ? { ...decision.seventhCard } : null,
     currentTrick: [...decision.trickBefore],
     tricks: decision.completedTricksBefore.map(trick => ({ ...trick, plays: [...trick.plays] })),
+    pausedTrick: null,
     matchScore: [...decision.matchScore] as [number, number],
     handNumber: 1,
     handId: 1,
-    lastTrickBonusEnabled: decision.lastTrickBonusEnabled,
+    rules: { ...decision.rules },
+    pair: decision.pair ? { ...decision.pair } : null,
+    stake: decision.stake,
+    stakeStage: null,
+    auctionActions: [],
     message: '',
     log: [],
     decisions: [],
     review: null,
+    bidRecords: [],
     version: 0,
   }
 }
 
 interface SampledWorld {
   hands: Card[][]
-  trumpSuit: Suit
+  trumpSuit: Suit | null
 }
 
 function inferKnownVoids(state: GameState): Set<Suit>[] {
@@ -213,19 +231,7 @@ function assignUnknownCards(
 }
 
 interface TrumpBelief {
-  suit: Suit
-  /** Approximate likelihood that the sampled bidder hand could produce the observed bid. */
-  bidCompatibility: number
-}
-
-function bidCeiling(score: number): number {
-  if (score >= 8.3) return 22
-  if (score >= 7.2) return 20
-  if (score >= 6.2) return 19
-  if (score >= 5.35) return 18
-  if (score >= 4.65) return 17
-  if (score >= 4.0) return 16
-  return 15
+  suit: Suit | null
 }
 
 function openingFourCombinations(cards: Card[]): Card[][] {
@@ -241,7 +247,8 @@ function openingFourCombinations(cards: Card[]): Card[][] {
 }
 
 function sampledTrump(state: GameState, hands: Card[][], player: number, random: () => number): TrumpBelief | null {
-  if (state.bidder === player) return state.trumpSuit ? { suit: state.trumpSuit, bidCompatibility: 1 } : null
+  if (state.reverse) return { suit: null }
+  if (state.bidder === player) return state.trumpSuit ? { suit: state.trumpSuit } : null
   if (state.bidder === null || state.highBid === null) return null
 
   // Reconstruct the bidder's original eight cards from their sampled remaining cards and public plays.
@@ -255,7 +262,10 @@ function sampledTrump(state: GameState, hands: Card[][], player: number, random:
   const weighted = subsets.map(openingFour => {
     const bestScore = Math.max(...SUITS.map(suit => suitPower(openingFour, suit)))
     const ceiling = bidCeiling(bestScore)
-    const weight = ceiling >= state.highBid! ? 1 : state.highBid === 17 && bestScore >= 3.55 ? 0.08 : 0
+    // A soft compatibility weight keeps aggressive human auctions playable. A hard cutoff
+    // would make the sampler return no worlds when a player bids above the bot threshold.
+    const gap = state.highBid! - ceiling
+    const weight = gap <= 0 ? 1 : Math.max(0.02, Math.pow(0.45, gap))
     return { openingFour, weight }
   })
   const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0)
@@ -269,8 +279,8 @@ function sampledTrump(state: GameState, hands: Card[][], player: number, random:
       break
     }
   }
-  const suit = state.trumpRevealed && state.trumpSuit ? state.trumpSuit : bestTrump(selected)
-  return { suit, bidCompatibility: totalWeight / Math.max(1, subsets.length) }
+  const suit = state.trumpRevealed && state.trumpSuit ? state.trumpSuit : chooseBotTrump(selected)
+  return { suit }
 }
 
 function sampleWorld(state: GameState, player: number, random: () => number): SampledWorld | null {
@@ -278,11 +288,12 @@ function sampleWorld(state: GameState, player: number, random: () => number): Sa
   const plays = publicPlays(state)
   const playedIds = new Set(plays.map(play => play.card.id))
   const ownIds = new Set(ownHand.map(card => card.id))
-  const pool = DECK.filter(card => !playedIds.has(card.id) && !ownIds.has(card.id))
+  const knownSeventh = state.bidder === player ? state.seventhCard : null
+  const pool = DECK.filter(card => !playedIds.has(card.id) && !ownIds.has(card.id) && card.id !== knownSeventh?.id)
   const playedCounts = [0, 0, 0, 0]
   for (const play of plays) playedCounts[play.player] += 1
   const capacities = [0, 1, 2, 3].map(seat => seat === player ? 0 : Math.max(0, 8 - playedCounts[seat]))
-  const expectedOwnCount = 8 - playedCounts[player]
+  const expectedOwnCount = (knownSeventh ? 7 : 8) - playedCounts[player]
   if (ownHand.length !== expectedOwnCount || pool.length !== capacities.reduce((sum, value) => sum + value, 0)) return null
 
   const voids = inferKnownVoids(state)
@@ -292,7 +303,7 @@ function sampleWorld(state: GameState, player: number, random: () => number): Sa
   if (!assigned) return null
   for (let seat = 0; seat < 4; seat++) if (seat !== player) hands[seat] = assigned[seat]
   const trumpBelief = sampledTrump(state, hands, player, random)
-  if (!trumpBelief || random() > trumpBelief.bidCompatibility) return null
+  if (!trumpBelief) return null
   return { hands, trumpSuit: trumpBelief.suit }
 }
 
@@ -301,6 +312,11 @@ function evaluateOneWorld(state: GameState, player: number, candidate: Card, wor
   contractSuccess: boolean
   pointMargin: number
 } | null {
+  // Once the mode is public and only a few tricks remain, solve the sampled deal exactly.
+  // This removes rollout noise from the part of the hand where precision matters most.
+  const exact = evaluateEndgameCandidate(state, player, candidate, world.hands)
+  if (exact) return exact
+
   let simulation: GameState = {
     ...state,
     hands: world.hands.map(hand => [...hand]),
@@ -314,7 +330,12 @@ function evaluateOneWorld(state: GameState, player: number, candidate: Card, wor
   }
   simulation = playCard(simulation, player, candidate.id)
   let safety = 0
-  while (simulation.phase === 'play' && safety < 32) {
+  while (simulation.phase === 'play' && safety < 40) {
+    if (simulation.pausedTrick) {
+      simulation = continueAfterTrick(simulation)
+      safety += 1
+      continue
+    }
     const active = simulation.currentPlayer
     const selected = chooseBotCard(simulation, active)
     if (!selected) return null
@@ -337,11 +358,11 @@ function evaluateOneWorld(state: GameState, player: number, candidate: Card, wor
 export function evaluateMoves(
   inputState: GameState,
   player = 0,
-  requestedSamples = 64,
+  requestedSamples = 96,
   seed = 290029,
 ): MoveEvaluation {
   const state = sanitizeStateForEvaluation(inputState, player)
-  const candidates = legalCards(state.hands[player] ?? [], state.currentTrick)
+  const candidates = legalCardsFor(state, player)
   if (state.phase !== 'play' || state.currentPlayer !== player || candidates.length === 0) {
     return { samples: 0, evaluatedMoves: 0, recommendedCardId: null, recommendationGap: 0, unknownTrumpModeled: false, notes: ['Move analysis is available on your turn during trick play.'], options: [] }
   }
@@ -394,13 +415,17 @@ export function evaluateMoves(
 
   const best = options[0]
   const runnerUp = options[1]
-  const unknownTrumpModeled = !state.trumpRevealed && state.bidder !== player
+  const unknownTrumpModeled = !state.reverse && !state.trumpRevealed && state.bidder !== player
   const notes = [
-    `Each move was rolled out over ${worlds.length} plausible unseen deals using the same sampled deals for fair comparison.`,
+    `Each move was evaluated over ${worlds.length} plausible unseen deals using the same sampled deals for fair comparison.`,
     'The evaluator uses your hand, public cards, inferred voids and remaining-card counts—not the opponents’ actual hidden hands.',
   ]
-  if (state.bidder !== player) notes.push('Sampled deals are filtered and weighted against the visible bid using the bot’s simplified bidding thresholds; real human bidding can differ.')
+  if (state.bidder !== player) notes.push('Sampled deals are weighted against the visible auction using the bot’s simplified bidding thresholds; real human bidding can differ.')
+  if (state.reverse) notes.push('This is a reverse contract: no trump, and the ranking flips (7 high, J low) once the 2 indicator is revealed.')
   if (unknownTrumpModeled) notes.push('Trump is still hidden, so its suit is sampled from plausible opening four-card hands for the bidder. Results are approximate.')
+  if (state.trumpRevealed && !state.seventhCard && 8 - state.tricks.length <= 4) {
+    notes.push('With four or fewer tricks left, each sampled deal is solved exactly by double-dummy search instead of a heuristic rollout.')
+  }
   if (best && runnerUp && best.teamGoalRate - runnerUp.teamGoalRate < 0.06 && Math.abs(best.expectedPointMargin - runnerUp.expectedPointMargin) < 1.25) {
     notes.push('The top options are close. Treat the recommendation as a tie-break, not a proven best move.')
   }
@@ -417,7 +442,7 @@ export function evaluateMoves(
 
 export function evaluateRecordedDecisions(
   decisions: DecisionRecord[],
-  requestedSamples = 32,
+  requestedSamples = 48,
   seed = 290029,
 ): DeepReviewResult {
   const items: DeepReviewItem[] = []

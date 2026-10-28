@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-28T00:00:00.000Z",
+  "title": "Design System: Twenty-Nine Trainer",
+  "extensions": {
+    "colorMeta": {
+      "felt-deep": {
+        "role": "neutral",
+        "displayName": "Deep Felt",
+        "canonical": "#0b1310",
+        "tonalRamp": ["#060b09", "#0b1310", "#111d17", "#17281e", "#1f3427", "#2a4533", "#3a5a44", "#d9e6dc"]
+      },
+      "felt": {
+        "role": "surface",
+        "displayName": "Table Felt",
+        "canonical": "#14231b",
+        "tonalRamp": ["#08110c", "#0e1a13", "#14231b", "#1b2f24", "#233d2e", "#2f503b", "#3f6a4e", "#d9e8dc"]
+      },
+      "felt-raised": {
+        "role": "surface",
+        "displayName": "Raised Felt",
+        "canonical": "#1b3323",
+        "tonalRamp": ["#0a130e", "#101d15", "#16291d", "#1b3323", "#23402c", "#2e5238", "#3d6b49", "#d9e8dc"]
+      },
+      "panel-ink": {
+        "role": "surface",
+        "displayName": "Panel Ink",
+        "canonical": "#101a15",
+        "tonalRamp": ["#070d0a", "#0a120e", "#0d1611", "#101a15", "#15231b", "#1d3024", "#2a4533", "#d6e4d8"]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "rgba(200, 222, 204, 0.15)",
+        "tonalRamp": ["rgba(200,222,204,0.06)", "rgba(200,222,204,0.09)", "rgba(200,222,204,0.12)", "rgba(200,222,204,0.15)", "rgba(200,222,204,0.19)", "rgba(200,222,204,0.24)", "rgba(200,222,204,0.32)", "rgba(200,222,204,0.44)"]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Chalk Text",
+        "canonical": "#eef5ee",
+        "tonalRamp": ["#3f4f45", "#5f7265", "#829688", "#a9bbad", "#c3d2c5", "#d9e5da", "#eef5ee", "#ffffff"]
+      },
+      "text-soft": {
+        "role": "neutral",
+        "displayName": "Soft Chalk",
+        "canonical": "#a9bbad",
+        "tonalRamp": ["#3f4f45", "#566a5b", "#6f8574", "#8ba08f", "#a9bbad", "#c3d2c5", "#d9e5da", "#eef5ee"]
+      },
+      "lime": {
+        "role": "primary",
+        "displayName": "Signal Lime",
+        "canonical": "#bff576",
+        "tonalRamp": ["#24350f", "#3d5a19", "#587f22", "#74a32d", "#90c63c", "#a8e04f", "#bff576", "#e6ffc4"]
+      },
+      "lime-ink": {
+        "role": "neutral",
+        "displayName": "Lime Ink",
+        "canonical": "#15220f",
+        "tonalRamp": ["#0a1206", "#101a0b", "#15220f", "#1d2f15", "#29431e", "#375a29", "#4c7a39", "#6a9e52"]
+      },
+      "gold": {
+        "role": "warning",
+        "displayName": "Warm Amber",
+        "canonical": "#eece90",
+        "tonalRamp": ["#3a2c12", "#5c451d", "#7f612a", "#a27e39", "#c39c50", "#dcb56b", "#eece90", "#fff2d2"]
+      },
+      "signal-red": {
+        "role": "error",
+        "displayName": "Felt Signal Red",
+        "canonical": "#ff9691",
+        "tonalRamp": ["#3d1311", "#5c1e1b", "#7f2c27", "#a23d36", "#c6544c", "#e5736b", "#ff9691", "#ffd3cf"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Decision Headline", "purpose": "The one decision sentence at the top of the table." },
+      "heading": { "displayName": "Review Heading", "purpose": "Review verdict and major panel titles." },
+      "body": { "displayName": "Body", "purpose": "Coaching prose, review detail, and all reading copy." },
+      "small": { "displayName": "Supporting", "purpose": "Event rows, metadata, and secondary explanations." },
+      "label": { "displayName": "Data Label", "purpose": "Match-strip labels, rail section heads, and status tags." }
+    },
+    "shadows": [
+      { "name": "dock-active", "value": "0 18px 40px rgba(0,0,0,.18)", "purpose": "Lifts the decision dock when it is the player's turn." },
+      { "name": "modal", "value": "0 22px 80px rgba(0,0,0,.45)", "purpose": "Separates the guide and settings dialogs from the table." },
+      { "name": "card-rest", "value": "0 4px 8px rgba(0,0,0,.18)", "purpose": "The small physical lift under a playing card." },
+      { "name": "card-hover", "value": "0 12px 16px rgba(0,0,0,.23)", "purpose": "A legal card rising toward the pointer." }
+    ],
+    "motion": [
+      { "name": "state-fast", "value": "160ms ease", "purpose": "Hover, focus, and button state changes." },
+      { "name": "turn-pulse", "value": "2.2s ease-in-out infinite", "purpose": "The only authored loop; marks the player's turn." },
+      { "name": "reduce-motion", "value": "prefers-reduced-motion: reduce", "purpose": "All animation and transitions collapse to 0.01ms." }
+    ],
+    "breakpoints": [
+      { "name": "rail-collapse", "value": "1180px" },
+      { "name": "stack", "value": "820px" },
+      { "name": "phone-reorder", "value": "680px" },
+      { "name": "phone-compact", "value": "470px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single available action: bid, play, or deal the next hand.",
+      "html": "<button class=\"ds-btn-primary\">Bid 17 &#8599;</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 12px 16px; border-radius: 9px; border: 1px solid #c9ff8d; background: #bff576; color: #15220f; font: 800 14px/1.2 ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: background 160ms ease, transform 160ms ease; } .ds-btn-primary:hover { background: #d0ff9c; transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: 3px solid #bff576; outline-offset: 3px; } .ds-btn-primary:disabled { opacity: .5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A supporting action such as Pass or Run again.",
+      "html": "<button class=\"ds-btn-secondary\">Pass</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 12px 16px; border-radius: 9px; border: 1px solid rgba(200,222,204,.26); background: #1b3323; color: #d1ddd3; font: 700 14px/1.2 ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: background 160ms ease; } .ds-btn-secondary:hover { background: #23402c; color: #f1f8ef; } .ds-btn-secondary:focus-visible { outline: 3px solid #bff576; outline-offset: 3px; }"
+    },
+    {
+      "name": "Match Strip",
+      "kind": "custom",
+      "refersTo": "match-strip",
+      "description": "The only home for match score, hand, contract, dealer, and turn state.",
+      "html": "<div class=\"ds-match-strip\"><div class=\"ds-match-strip-team\"><span>You</span><strong>+1</strong></div><div class=\"ds-match-strip-team\"><span>Them</span><strong>0</strong></div><div class=\"ds-match-strip-meta\"><span>HAND 03</span><strong>20 &#9824;</strong></div><div class=\"ds-match-strip-state\">Your move</div></div>",
+      "css": ".ds-match-strip { display: flex; align-items: center; gap: 22px; min-height: 64px; padding: 0 24px; border-bottom: 1px solid rgba(200,222,204,.15); background: linear-gradient(180deg, rgba(18,30,23,.92), rgba(12,21,16,.92)); color: #eef5ee; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-match-strip-team { display: flex; align-items: baseline; gap: 8px; } .ds-match-strip-team span, .ds-match-strip-meta span { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: #93a796; font-weight: 800; } .ds-match-strip-team strong { font-size: 20px; font-variant-numeric: tabular-nums; } .ds-match-strip-meta { display: flex; gap: 22px; align-items: baseline; } .ds-match-strip-state { margin-left: auto; padding: 8px 14px; border-radius: 999px; background: #bff576; color: #15220f; font-size: 13px; font-weight: 750; }"
+    },
+    {
+      "name": "Seat Chip",
+      "kind": "chip",
+      "refersTo": "seat-chip",
+      "description": "A solid ink chip for each player seat; never glass.",
+      "html": "<div class=\"ds-seat\"><span class=\"ds-seat-avatar\">P</span><div><strong>Partner</strong><span>Your team &middot; 8 cards</span></div></div>",
+      "css": ".ds-seat { position: absolute; display: flex; align-items: center; gap: 9px; min-width: 156px; padding: 9px 11px; border: 1px solid rgba(221,245,215,.12); border-radius: 12px; background: #0e2317; color: #eef5ee; font-family: ui-sans-serif, system-ui, sans-serif; box-shadow: 0 7px 15px rgba(5,20,12,.14); } .ds-seat-avatar { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: #293f31; color: #d5e9d3; font-size: 14px; font-weight: 850; } .ds-seat strong { display: block; font-size: 14px; } .ds-seat span { display: block; font-size: 12px; color: #b1c8b3; }"
+    },
+    {
+      "name": "Playing Card",
+      "kind": "card",
+      "refersTo": "playing-card",
+      "description": "Ivory card stock; rank in two corners, one large suit centre.",
+      "html": "<button class=\"ds-card\" aria-label=\"Play Jack of Spades\"><span class=\"ds-card-corner\"><strong>J</strong><span>&#9824;</span></span><span class=\"ds-card-suit\">&#9824;</span></button>",
+      "css": ".ds-card { position: relative; width: 64px; height: 90px; padding: 0; border: 1px solid #d8dfd6; border-radius: 8px; background: linear-gradient(145deg, #fffefa, #f2f0e7); color: #17211b; box-shadow: 0 4px 8px rgba(0,0,0,.18); font-family: ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: transform 150ms ease, box-shadow 150ms ease; } .ds-card:hover { transform: translateY(-8px); box-shadow: 0 12px 16px rgba(0,0,0,.23), 0 0 0 2px #bff576; } .ds-card-corner { position: absolute; left: 6px; top: 5px; display: flex; flex-direction: column; align-items: center; line-height: 1; font-weight: 800; } .ds-card-corner strong { font-size: 14px; } .ds-card-corner span { font-size: 9px; } .ds-card-suit { position: absolute; inset: 0; display: grid; place-items: center; font-size: 34px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The club table, not the dashboard.",
+    "overview": "The player came to play a hand, not to read a control panel. The table is the stage, with its own score stack and trump card; the match tiles sit in the top bar; the hand is a dock below it; the coach is evidence attached to the decision. Everything else is reference, kept quiet in one rail or folded below on a phone.",
+    "keyCharacteristics": [
+      "One filled lime element at a time: the action that is actually available.",
+      "A deep green felt field with warm ivory cards and ink-coloured seat chips.",
+      "A compact match strip in the top bar replaces sidebar score, contract, and progress cards.",
+      "A single decision dock owns the hand, the bid controls, and the phone coach.",
+      "Plain-spoken coaching names the visible cards behind every claim."
+    ],
+    "rules": [
+      { "name": "The One Signal Rule", "body": "If more than one element on screen is filled lime, one of them is not an action.", "section": "colors" },
+      { "name": "The Label Rule", "body": "A label names a datum or a section. If it only announces the heading beneath it, delete it.", "section": "typography" },
+      { "name": "The Match-Strip Rule", "body": "Match state lives in one horizontal strip. It never returns to a sidebar card.", "section": "layout" },
+      { "name": "The Etched Rule", "body": "A surface earns depth from its edge and fill, not from a blur.", "section": "elevation" },
+      { "name": "The Next-Action Rule", "body": "The current legal decision is the loudest thing in view; coaching attaches to it rather than competing with it.", "section": "layout" }
+    ],
+    "dos": [
+      "Do keep exactly one lime-filled action in view.",
+      "Do put the hand and the bid/play controls before the coach on phones.",
+      "Do name the visible card, count, or point total behind a coaching claim.",
+      "Do keep touch targets at 44px and body copy at 16px.",
+      "Do use tabular numerals for every score and percentage."
+    ],
+    "donts": [
+      "Don't return to a three-column dashboard of equal panels.",
+      "Don't nest a card inside the decision dock; use a rule and spacing.",
+      "Don't use decorative eyebrows above headings; labels name data.",
+      "Don't use glass, gradient text, or card-face suit colours on dark surfaces.",
+      "Don't animate width, height, or layout properties; use transform and opacity."
+    ]
+  }
+}
+
+
