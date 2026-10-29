@@ -174,7 +174,7 @@ Corners are soft but not pill-shaped except for status chips. Playing cards keep
 - **Pause bar.** After every trick the four cards stay on the felt; a bar beneath names the winner, the points, and the Continue action. It can also offer the royal-pair declaration. The same bar pauses a completed auction before trump is chosen.
 - **Stake panel.** Appears after trump is set when double/redouble is enabled. It explains the match-point swing and offers the side's one decision.
 - **Settings.** Rule switches apply to the next hand; the coach switch applies immediately. The modal shows the current hand's rules beside the next hand's rules.
-- **Coach.** A phase tag, a confidence tag, a title, a summary, short evidence bullets, a filled action line, and an optional sampled-model note. Every bullet names a card, count, or point total.
+- **Coach.** A phase tag, a rule/hybrid/read confidence tag, a table-goal strip, an action-first title and summary, a one-sentence plan, the filled action line, short evidence bullets, and an optional sampled-model note. Every bullet names a card, count, or point total. When the sampled comparison is ready, the confidence tag reads hybrid and the action may follow the model; close disagreements keep the visible rule as the tie-break. On another seat's turn, the card becomes a non-actionable table read with a **Last Play** strip above it. Suit symbols are consistently red for hearts/diamonds and light for spades/clubs outside the ivory card faces.
 - **Review.** Verdict and next action at the top, stat grid, coach notes, bid review, data-driven hand insights, trick timeline, then the full-width deep review.
 - **Modal.** Used only for the guide and settings; Escape closes, the close button takes focus.
 

@@ -18,11 +18,14 @@ A local-first Twenty-Nine practice game built with React, TypeScript, Vite, and 
 - **Coach tip history:** step back through earlier advice with previous/next arrows; a Latest jump returns to live advice.
 - Trump-reveal and royal-pair announcements animate on the felt, and the trump card flips when the suit is exposed.
 - **Search-based bots:** partner-aware bidding, plus determinized Monte Carlo card play over plausible unseen deals. Once the contract mode is public, the last four tricks are solved exactly with double-dummy minimax. Bots still use only their own hand and public information; the search never receives the real hidden hands.
-- **Visible-card coach:** a concrete bid or card recommendation every turn, with the evidence behind it (trump control, unseen high cards, known voids, contract progress) and a bid review after the hand.
+- **Hybrid coach:** a visible-card rule tip starts every turn, then the sampled comparison turns it into a hybrid verdict. The card, plan, and confidence label update when the model has a clear edge; when the views are close, the rule remains the tie-break and the tip explains both. The live coach keeps the evidence behind each claim, plus a bid review after the hand.
+- **Off-turn table reads:** while an opponent or partner is thinking, the coach stops giving you card advice and instead reads the public table: the contract count, known voids, likely suit plan, and what to watch. After a card lands, a **Last Play** strip explains what that card was likely trying to do.
+- **Consistent suit ink:** hearts and diamonds are red everywhere, including coach text, event logs, card labels, and review copy; black suits use the light ink on dark surfaces.
 - **Coach off switch** in the top bar and settings for a clean table with no hints or model panels.
 - Rule-based post-hand feedback for clear tactical opportunities, point donations, wasted control, and uncollected points.
-- **Monte Carlo move evaluator:** compare every legal card against 96 sampled unseen deals on your turn, with exact double-dummy solving once four or fewer tricks remain.
-- **Automatic full-hand deep review:** after each hand, re-evaluate each recorded decision across sampled deals, show the model's alternative, and estimate how it changes the chance of achieving your team's objective. The review can be run again on demand.
+- **Monte Carlo move evaluator:** compare every legal card against 200 sampled unseen deals by default, with exact double-dummy solving once four or fewer tricks remain. Sample size is adjustable in **Practice settings** from 48 to 400.
+- **Automatic full-hand deep review:** after each hand, re-evaluate each recorded decision across 200 sampled deals by default, show the model's alternative, and estimate how it changes the chance of achieving your team's objective. The review can be run again on demand, and its sample size is adjustable.
+- **Bot controls:** search-based bots can be switched off for faster heuristic play, and the bot search budget can be set to 24, 48, 96, or 200 deals per move.
 - Sampling respects seen cards, known void suits, and public remaining-card counts. The worker receives a sanitized snapshot without opponents' hands or a hidden trump suit.
 - A Web Worker keeps the coach's move-comparison and deep-review simulations off the main UI thread; the bots' own search runs locally in the page during their turn.
 - Interactive trick timeline, contextual hints, local session statistics, and responsive phone/tablet/desktop layouts.
@@ -34,6 +37,8 @@ The evaluator does not just rank cards with fixed rules. It samples plausible hi
 
 When trump is public and four or fewer tricks remain, the rollout is replaced by an exact double-dummy minimax solve on each sampled deal. That removes most of the late-game sampling noise and lets the review distinguish genuinely better endgame plays.
 
+The live tip is a hybrid. It keeps the rule coach's visible-card explanation and plan. Once the sampled comparison is ready, the tip uses the model's card when it has a clear edge, and keeps the rule card as a tie-break when the top options are close. The card shows the rule and sampled views side by side so the player can see why the two agree or differ.
+
 The bots use the same machinery for their own decisions. Each bot sanitizes its view, samples unseen deals, evaluates every legal card against the same deals, and plays the best expected move. Bidding is deterministic and partner-aware: a bot does not outbid a partner who already holds the contract, a raise without partner support must project at least one level above the contract, and a high contested bid needs a larger cushion. There is no random bluffing.
 
 The result shows:
@@ -43,7 +48,7 @@ The result shows:
 - Sampling error, the number of sampled deals, and whether hidden trump was approximated.
 - Alternative moves at post-hand review.
 
-**Limits:** this is a teaching approximation, not a perfect solver. It uses the current bot policy for hypothetical continuation, and the unknown trump suit is modelled from plausible opening four-card hands when it is hidden. The percentages are estimates and should be interpreted with the sample count and uncertainty. More samples improve stability but take longer. The evaluator intentionally does not inspect the actual unseen hands when constructing scenarios.
+**Limits:** this is a teaching approximation, not a perfect solver. It uses the current bot policy for hypothetical continuation, and the unknown trump suit is modelled from plausible opening four-card hands when it is hidden. The percentages are estimates and should be interpreted with the sample count and uncertainty. More samples improve stability but take longer; the default is 200, and 400 is available for close study. The evaluator intentionally does not inspect the actual unseen hands when constructing scenarios.
 
 ## Rules used in this starter
 

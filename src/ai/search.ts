@@ -7,20 +7,20 @@ import {
 import { evaluateMoves } from './evaluator'
 
 export interface BotSearchOptions {
-  /** Requested determinizations. The sampler may return fewer if the constraints are tight. */
+  /** Base determinization budget. The sampler may return fewer if the constraints are tight. */
   samples?: number
   seed?: number
 }
 
 let searchSequence = 0
 
-function adaptiveSamples(candidateCount: number, remainingTricks: number): number {
-  // The exact endgame solver is strong but more expensive per world, so use fewer worlds there.
-  if (remainingTricks === 4) return 24
-  if (remainingTricks <= 3) return 32
-  if (candidateCount <= 2) return 96
-  if (candidateCount >= 5) return 48
-  return 64
+function sampleBudget(base: number, candidateCount: number, remainingTricks: number): number {
+  // The exact endgame solver is strong but more expensive per world, so cap those worlds.
+  if (remainingTricks === 4) return Math.min(base, 24)
+  if (remainingTricks <= 3) return Math.min(base, 32)
+  if (candidateCount <= 2) return base
+  if (candidateCount >= 5) return Math.max(24, Math.round(base * 0.75))
+  return base
 }
 
 /**
@@ -41,7 +41,8 @@ export function chooseBotCardWithSearch(state: GameState, player: number, option
   }
 
   const remainingTricks = 8 - state.tricks.length
-  const requestedSamples = options.samples ?? adaptiveSamples(candidates.length, remainingTricks)
+  const baseSamples = options.samples ?? 96
+  const requestedSamples = sampleBudget(baseSamples, candidates.length, remainingTricks)
   const seed = options.seed ?? (state.handId * 1009 + state.version * 9176 + player * 37 + searchSequence++)
   let evaluation
   try {

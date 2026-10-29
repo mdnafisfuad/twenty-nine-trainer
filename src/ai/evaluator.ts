@@ -358,7 +358,7 @@ function evaluateOneWorld(state: GameState, player: number, candidate: Card, wor
 export function evaluateMoves(
   inputState: GameState,
   player = 0,
-  requestedSamples = 96,
+  requestedSamples = 200,
   seed = 290029,
 ): MoveEvaluation {
   const state = sanitizeStateForEvaluation(inputState, player)
@@ -366,7 +366,7 @@ export function evaluateMoves(
   if (state.phase !== 'play' || state.currentPlayer !== player || candidates.length === 0) {
     return { samples: 0, evaluatedMoves: 0, recommendedCardId: null, recommendationGap: 0, unknownTrumpModeled: false, notes: ['Move analysis is available on your turn during trick play.'], options: [] }
   }
-  const sampleCount = Math.max(16, Math.min(200, Math.floor(requestedSamples)))
+  const sampleCount = Math.max(16, Math.min(400, Math.floor(requestedSamples)))
   const random = seededRandom(seed)
   const worlds: SampledWorld[] = []
   let attempts = 0
@@ -442,12 +442,12 @@ export function evaluateMoves(
 
 export function evaluateRecordedDecisions(
   decisions: DecisionRecord[],
-  requestedSamples = 48,
+  requestedSamples = 200,
   seed = 290029,
 ): DeepReviewResult {
   const items: DeepReviewItem[] = []
-  const samples = Math.max(16, Math.min(96, Math.floor(requestedSamples)))
-  decisions.forEach((decision, index) => {
+  const samples = Math.max(16, Math.min(400, Math.floor(requestedSamples)))
+  decisions.filter(decision => decision.legalCards.length > 1).forEach((decision, index) => {
     const snapshot = stateFromDecision(decision)
     const result = evaluateMoves(snapshot, decision.player, samples, seed + index * 7919)
     const chosen = result.options.find(option => option.cardId === decision.card.id)

@@ -21,7 +21,7 @@ Primary action: the current legal decision (bid, choose trump, play a card). Sup
 
 ## Constraints
 
-Preserve all game rules and evaluator behaviour. Optional royal-pair, seventh-card, reverse, double/redouble, and last-trick rules have settings switches; the coach can be turned off. Bots use sanitized determinized search with an exact double-dummy endgame; they never receive real hidden hands. Keep the visual identity (dark green club-table, lime accent) confirmed in PRODUCT.md. No hidden information in the coach. Must hold at 320-1720px, 44px touch targets, 16px body text, reduced motion.
+Preserve all game rules and evaluator behaviour. Optional royal-pair, seventh-card, reverse, double/redouble, and last-trick rules have settings switches; the coach can be turned off. The live tip is a hybrid: visible-card rule first, then the sampled model when it has a clear edge. On another seat's turn it becomes a non-actionable table read, with a Last Play explanation after the card. Compare and deep-review sample sizes, plus the bot search budget and search toggle, are settings. Suit symbols are consistently red for hearts/diamonds and light for spades/clubs outside ivory card faces. Bots use sanitized determinized search with an exact double-dummy endgame; they never receive real hidden hands. Keep the visual identity (dark green club-table, lime accent) confirmed in PRODUCT.md. No hidden information in the coach. Must hold at 320-1720px, 44px touch targets, 16px body text, reduced motion.
 
 ## Direction contract
 

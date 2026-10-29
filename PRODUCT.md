@@ -16,7 +16,7 @@ A local-first Twenty-Nine practice table with three bots, a live coach, and a po
 
 ## Positioning
 
-The coach reasons only from the player's own hand and public play — no hidden-card cheating — and combines deterministic visible-card rules with an optional Monte Carlo sampler running locally in a Web Worker. A neighbouring trainer could copy the rules, but not the fair-information model plus card-specific reasoning at the moment of decision.
+The coach reasons only from the player's own hand and public play - no hidden-card cheating - and combines deterministic visible-card rules with a Monte Carlo sampler running locally in a Web Worker. The live tip starts with the rule verdict and becomes a hybrid when the sampled result arrives: the model takes over when its edge is clear, while the visible rule remains the tie-break in close spots. A neighbouring trainer could copy the rules, but not the fair-information model, the hybrid explanation, plus card-specific reasoning at the moment of decision.
 
 ## Operating Context
 
@@ -31,10 +31,13 @@ Browser only: no account, backend, or API key. One session covers the deal, auct
 - The completed auction pauses with a Continue button before the declarer chooses the contract.
 - Every completed trick pauses on the table until the player continues, so the four cards can be read before the next lead.
 - The table carries physical objects: a card-stack match scoreboard, a face-down trump card that flips when revealed, and seat chips with card fans instead of status sentences.
-- Coach advice is kept as a per-hand history that can be stepped through with previous/next controls.
+- Coach advice is kept as a per-hand history that can be stepped through with previous/next controls. The live tip is a hybrid of the visible-card rule and the sampled model.
+- On another seat's turn, the coach switches to a non-actionable table read: what that seat may be trying to do, what the current trick and known voids imply, and a **Last Play** explanation after their card lands.
+- Suit symbols use consistent ink: hearts and diamonds are red in coach text, event logs, review copy, and card labels; black suits use light ink on dark surfaces.
+- Compare uses 200 sampled deals per card by default; deep review uses 200 per decision. Both are adjustable from 48 to 400 in Practice settings.
 - Single-hand declarations and the Bangladesh auction sequence are not implemented.
 - The live coach may use only visible information; the deep evaluator receives sanitized state and runs in a Web Worker.
-- Bots use partner-aware deterministic bidding and determinized Monte Carlo card search; once the mode is public and four or fewer tricks remain, each sampled deal is solved exactly with double-dummy minimax. Bot search is sanitized before sampling, so it cannot see the real hidden hands.
+- Bots use partner-aware deterministic bidding and determinized Monte Carlo card search; once the mode is public and four or fewer tricks remain, each sampled deal is solved exactly with double-dummy minimax. Bot search is sanitized before sampling, so it cannot see the real hidden hands. Search can be switched off for faster heuristic bots, and its sample budget is configurable.
 - The coach, hints, card reading, and model panels can be turned off from the top bar or settings.
 - Static-deployable (Cloudflare Pages) with session stats and rule preferences stored locally.
 

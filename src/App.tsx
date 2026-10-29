@@ -6,13 +6,13 @@ import {
 } from 'lucide-react'
 import {
   applyBid, botBid, botDoubleDecision, botRedoubleDecision, cardText,
-  chooseBotTrump, chooseReverse, chooseSeventhCard, chooseTrump, continueAfterAuction,
+  chooseBotCard, chooseBotTrump, chooseReverse, chooseSeventhCard, chooseTrump, continueAfterAuction,
   continueAfterTrick, contractTarget, declarePair, DEFAULT_RULES, isRedSuit, legalCardsFor,
   maxBidFor, newHand, openingReport, pairEligible, playCard, PLAYER_NAMES, PLAYER_POSITIONS,
   resolveStake, SUITS, SUIT_LABEL, SUIT_SYMBOL, teamOf, type Card, type GameState, type RuleSet,
   type Suit,
 } from './game'
-import { coachInsight, handInsights, tableReading, type CoachInsight } from './coach'
+import { coachInsight, handInsights, lastPlayInsight, observationInsight, tableReading, type CoachInsight } from './coach'
 import { sanitizeStateForEvaluation, type DeepReviewResult, type MoveEvaluation } from './ai/evaluator'
 import { chooseBotCardWithSearch } from './ai/search'
 import './styles.css'
@@ -24,12 +24,35 @@ type SessionStats = {
   clearMistakes: number
 }
 
-type Preferences = RuleSet & { coach: boolean }
+type Preferences = RuleSet & {
+  coach: boolean
+  compareSamples: number
+  reviewSamples: number
+  botSamples: number
+  searchBots: boolean
+}
 
 const DEFAULT_STATS: SessionStats = { handsPlayed: 0, contractsMade: 0, contractsAttempted: 0, clearMistakes: 0 }
 const STATS_KEY = 'twenty-nine-trainer-stats-v1'
 const PREFS_KEY = 'twenty-nine-trainer-preferences-v2'
-const DEFAULT_PREFERENCES: Preferences = { ...DEFAULT_RULES, coach: true }
+const COMPARE_SAMPLE_OPTIONS = [48, 96, 200, 400] as const
+const REVIEW_SAMPLE_OPTIONS = [48, 96, 200, 400] as const
+const BOT_SAMPLE_OPTIONS = [24, 48, 96, 200] as const
+const DEFAULT_COMPARE_SAMPLES = 200
+const DEFAULT_REVIEW_SAMPLES = 200
+const DEFAULT_BOT_SAMPLES = 96
+const DEFAULT_PREFERENCES: Preferences = {
+  ...DEFAULT_RULES,
+  coach: true,
+  compareSamples: DEFAULT_COMPARE_SAMPLES,
+  reviewSamples: DEFAULT_REVIEW_SAMPLES,
+  botSamples: DEFAULT_BOT_SAMPLES,
+  searchBots: true,
+}
+
+function sampleChoice(value: unknown, options: readonly number[], fallback: number): number {
+  return typeof value === 'number' && options.includes(value) ? value : fallback
+}
 
 function getStats(): SessionStats {
   try {
@@ -50,6 +73,10 @@ function getPreferences(): Preferences {
       double: parsed?.double !== false,
       reverse: parsed?.reverse === true,
       coach: parsed?.coach !== false,
+      compareSamples: sampleChoice(parsed?.compareSamples, COMPARE_SAMPLE_OPTIONS, DEFAULT_COMPARE_SAMPLES),
+      reviewSamples: sampleChoice(parsed?.reviewSamples, REVIEW_SAMPLE_OPTIONS, DEFAULT_REVIEW_SAMPLES),
+      botSamples: sampleChoice(parsed?.botSamples, BOT_SAMPLE_OPTIONS, DEFAULT_BOT_SAMPLES),
+      searchBots: parsed?.searchBots !== false,
     }
   } catch {
     return DEFAULT_PREFERENCES
@@ -63,6 +90,21 @@ function sortHand(cards: Card[]): Card[] {
 
 function suitColor(suit: Suit) {
   return isRedSuit(suit) ? 'red' : 'black'
+}
+
+/** Render suit symbols with the same red/light ink everywhere outside the card faces. */
+function SuitText({ text }: { text: string }) {
+  return <>{text.split(/([♠♥♦♣])/g).map((part, index) => {
+    if (part === '♥' || part === '♦') return <span key={index} className="suit-red">{part}</span>
+    if (part === '♠' || part === '♣') return <span key={index} className="suit-light">{part}</span>
+    return <span key={index}>{part}</span>
+  })}</>
+}
+
+function colorizeSuitSymbols(text: string): string {
+  return text
+    .replace(/[♥♦]/g, '<span class="suit-red">$&</span>')
+    .replace(/[♠♣]/g, '<span class="suit-light">$&</span>')
 }
 
 function CardFace({ card, hidden = false, playable = false, disabled = false, compact = false, onClick, label }: {
@@ -184,44 +226,58 @@ function TrumpStash({ suit, reverse, indicatorSuit, revealed, knownToYou }: {
 }
 
 function insightKey(tip: CoachInsight): string {
-  return `${tip.tag}|${tip.title}|${tip.summary}|${tip.bullets.join('¦')}|${tip.action ?? ''}|${tip.recommendedCardId ?? ''}`
+  return `${tip.tag}|${tip.source ?? 'rules'}|${tip.title}|${tip.summary}|${tip.plan ?? ''}|${tip.bullets.join('¦')}|${tip.action ?? ''}|${tip.recommendedCardId ?? ''}`
 }
 
 /** Coach advice with a history the player can step through. */
-function CoachFeed({ tips, index, onIndex, modelNote }: {
+function CoachFeed({ tips, index, onIndex, modelNote, objective, lastPlay }: {
   tips: CoachInsight[]
   index: number
   onIndex: (index: number) => void
   modelNote?: string
+  objective?: string
+  lastPlay?: CoachInsight | null
 }) {
   if (tips.length === 0) return null
   const current = index < 0 ? tips.length - 1 : Math.min(index, tips.length - 1)
   const tip = tips[current]
   const atLatest = current >= tips.length - 1
   return <div className="coach-feed">
+    {lastPlay && <div className={`coach-last-play tone-${lastPlay.tone}`}>
+      <div className="coach-last-play-head"><span>LAST PLAY</span><strong><SuitText text={lastPlay.title} /></strong></div>
+      <p><SuitText text={lastPlay.summary} /></p>
+      {lastPlay.plan && <p className="coach-last-play-plan"><SuitText text={lastPlay.plan} /></p>}
+    </div>}
     <div className="coach-feed-nav">
       <button type="button" className="coach-nav" onClick={() => onIndex(Math.max(0, current - 1))} disabled={current <= 0} aria-label="Previous coaching tip"><ChevronLeft size={16} aria-hidden="true" /></button>
       <span className="coach-feed-count" aria-live="polite">{current + 1}<i>/</i>{tips.length}</span>
       <button type="button" className="coach-nav" onClick={() => onIndex(Math.min(tips.length - 1, current + 1))} disabled={atLatest} aria-label="Next coaching tip"><ChevronRight size={16} aria-hidden="true" /></button>
       {!atLatest ? <button type="button" className="coach-latest" onClick={() => onIndex(-1)}>Latest</button> : <span className="coach-live"><i aria-hidden="true" />Live</span>}
     </div>
-    <CoachInsightCard insight={tip} modelNote={atLatest ? modelNote : undefined} />
+    <CoachInsightCard insight={tip} modelNote={atLatest ? modelNote : undefined} objective={atLatest ? objective : undefined} />
   </div>
 }
 
-function CoachInsightCard({ insight, modelNote }: { insight: CoachInsight; modelNote?: string }) {
-  return <div className={`coach-insight tone-${insight.tone}`}>
+function CoachInsightCard({ insight, modelNote, objective }: { insight: CoachInsight; modelNote?: string; objective?: string }) {
+  const sourceLabel = insight.source === 'observation'
+    ? 'TABLE READ'
+    : insight.source === 'hybrid'
+      ? 'HYBRID · RULE + MODEL'
+      : insight.confidence === 'certain' ? 'VISIBLE CARDS' : 'RULE ESTIMATE'
+  return <div className={`coach-insight tone-${insight.tone} ${insight.source === 'hybrid' ? 'is-hybrid' : ''} ${insight.source === 'observation' ? 'is-observation' : ''}`}>
     <div className="inline-coach-head">
       <span className="coach-tag">{insight.tag}</span>
-      <span className="coach-confidence">{insight.confidence === 'certain' ? 'BASED ON VISIBLE CARDS' : 'MODEL ESTIMATE'}</span>
+      <span className="coach-confidence">{sourceLabel}</span>
     </div>
-    <h4 className="coach-insight-title">{insight.title}</h4>
-    <p className="coach-summary">{insight.summary}</p>
+    {objective && <p className="coach-objective"><span>TABLE GOAL</span><SuitText text={objective} /></p>}
+    <h4 className="coach-insight-title"><SuitText text={insight.title} /></h4>
+    <p className="coach-summary"><SuitText text={insight.summary} /></p>
+    {insight.plan && <p className="coach-plan"><span>PLAN</span><SuitText text={insight.plan} /></p>}
+    {insight.action && <div className="coach-action"><Lightbulb size={16} aria-hidden="true" /><span><strong>Do this:</strong> <SuitText text={insight.action} /></span></div>}
     {insight.bullets.length > 0 && <ul className="coach-bullets">
-      {insight.bullets.map((bullet, index) => <li key={`${index}-${bullet}`}>{bullet}</li>)}
+      {insight.bullets.map((bullet, index) => <li key={`${index}-${bullet}`}><SuitText text={bullet} /></li>)}
     </ul>}
-    {insight.action && <div className="coach-action"><Lightbulb size={16} aria-hidden="true" /><span><strong>Do this:</strong> {insight.action}</span></div>}
-    {modelNote && <p className="coach-reco"><Target size={15} aria-hidden="true" /><span>{modelNote}</span></p>}
+    {modelNote && <p className="coach-reco"><Target size={15} aria-hidden="true" /><span><SuitText text={modelNote} /></span></p>}
   </div>
 }
 
@@ -271,6 +327,23 @@ function ToggleRow({ title, description, checked, onChange }: { title: string; d
   </div>
 }
 
+function SelectRow({ title, description, value, options, suffix = 'deals', disabled = false, onChange }: {
+  title: string
+  description: string
+  value: number
+  options: readonly number[]
+  suffix?: string
+  disabled?: boolean
+  onChange: (value: number) => void
+}) {
+  return <div className={`setting-row setting-row-select ${disabled ? 'is-disabled' : ''}`}>
+    <div className="setting-copy"><strong>{title}</strong><p>{description}</p></div>
+    <select className="setting-select" aria-label={title} value={value} disabled={disabled} onChange={event => onChange(Number(event.target.value))}>
+      {options.map(option => <option key={option} value={option}>{option} {suffix}</option>)}
+    </select>
+  </div>
+}
+
 function ruleSummary(rules: RuleSet): string {
   return `Pair ${rules.pair ? 'on' : 'off'} · Seventh ${rules.seventhCard ? 'on' : 'off'} · Reverse ${rules.reverse ? 'on' : 'off'} · Double ${rules.double ? 'on' : 'off'} · Last trick ${rules.lastTrickBonus ? 'on' : 'off'}`
 }
@@ -278,12 +351,12 @@ function ruleSummary(rules: RuleSet): string {
 function MoveAnalysisPanel({ analysis, objectiveLabel }: { analysis: MoveEvaluation; objectiveLabel: string }) {
   if (!analysis.options.length) return <section className="move-analysis-panel"><p>{analysis.notes[0] || 'No move estimates are available.'}</p></section>
   return <section className="move-analysis-panel">
-    <div className="analysis-panel-heading"><div><span className="eyebrow">MONTE CARLO COACH</span><h3>Compare your legal moves</h3></div><span className="analysis-sample-pill">{analysis.samples} sampled deals</span></div>
-    <p className="analysis-intro">Estimated chance your team succeeds at {objectiveLabel}. The same plausible deals were used for every option.</p>
+    <div className="analysis-panel-heading"><div><span className="eyebrow">HYBRID COACH</span><h3>Compare your legal moves</h3></div><span className="analysis-sample-pill">{analysis.samples} sampled deals</span></div>
+    <p className="analysis-intro">Estimated chance your team succeeds at {objectiveLabel}. The same plausible deals were used for every option, and the live tip adopts this result when the edge is clear.</p>
     <div className="move-estimate-list">{analysis.options.map((option, index) => <article key={option.cardId} className={`move-estimate-row ${index === 0 ? 'move-estimate-best' : ''}`}>
-      <span className="move-estimate-card">{option.cardLabel}</span>
-      <div className="move-estimate-detail"><div className="move-estimate-top"><strong>{index === 0 ? 'Recommended' : `Option ${index + 1}`}</strong><span>{Math.round(option.teamGoalRate * 100)}%</span></div><div className="move-estimate-track"><i style={{ width: `${Math.round(option.teamGoalRate * 100)}%` }} /></div><small>Expected point margin: {option.expectedPointMargin > 0 ? '+' : ''}{option.expectedPointMargin.toFixed(1)} · ±{Math.round(option.standardError * 196)} pp sampling error</small></div>
-      {index === 0 && <span className="analysis-best-tag">BEST ESTIMATE</span>}
+      <span className="move-estimate-card"><SuitText text={option.cardLabel} /></span>
+      <div className="move-estimate-detail"><div className="move-estimate-top"><strong>{index === 0 ? 'Model top' : `Option ${index + 1}`}</strong><span>{Math.round(option.teamGoalRate * 100)}%</span></div><div className="move-estimate-track"><i style={{ width: `${Math.round(option.teamGoalRate * 100)}%` }} /></div><small>Expected point margin: {option.expectedPointMargin > 0 ? '+' : ''}{option.expectedPointMargin.toFixed(1)} · ±{Math.round(option.standardError * 196)} pp sampling error</small></div>
+      {index === 0 && <span className="analysis-best-tag">TOP MODEL</span>}
     </article>)}</div>
     <div className="analysis-footnotes">{analysis.notes.map(note => <p key={note}>{note}</p>)}</div>
   </section>
@@ -298,7 +371,7 @@ function DeepReviewPanel({ result, objectiveLabel, onSelectTrick }: { result: De
       const gain = Math.round(item.goalRateGain * 100)
       return <article key={`${item.trickNumber}-${index}`} className={`deep-review-item ${!same && gain >= 8 ? 'deep-review-actionable' : ''}`}>
         <div className="deep-review-item-top"><span className="feedback-kicker">TRICK {item.trickNumber}</span><span className={`deep-confidence confidence-${item.confidence}`}>{same ? 'Top-ranked move' : item.confidence === 'strong' ? 'Strong signal' : item.confidence === 'suggestive' ? 'Worth reviewing' : 'Close decision'}</span></div>
-        <strong>{same ? `You played ${item.chosenCardLabel} — top-ranked` : `You played ${item.chosenCardLabel}; model prefers ${item.recommendedCardLabel}`}</strong>
+        <strong><SuitText text={same ? `You played ${item.chosenCardLabel} — top-ranked` : `You played ${item.chosenCardLabel}; model prefers ${item.recommendedCardLabel}`} /></strong>
         <p>Estimated chance of {objectiveLabel}: {Math.round(item.chosenGoalRate * 100)}% → {Math.round(item.recommendedGoalRate * 100)}%{gain > 0 ? ` (+${gain} percentage points)` : gain < 0 ? ` (${gain} percentage points)` : ''}. Expected point-margin change: {item.pointMarginGain > 0 ? '+' : ''}{item.pointMarginGain.toFixed(1)}.</p>
         <button className="inline-link" onClick={() => onSelectTrick(item.trickNumber - 1)}>Inspect trick <ArrowUpRight size={12} /></button>
       </article>
@@ -345,7 +418,7 @@ function ReviewScreen({ game, onNext, onNewMatch, onSelectTrick, selectedTrick, 
   return <div className="review-screen">
     <div className="review-topline"><div><h2>{headline}</h2><p className="review-meta">Hand {String(game.handNumber).padStart(2, '0')} · post-hand review</p><p className="review-subtitle">Review the decisions, not just the result. Hidden cards can create unlucky outcomes without making a move wrong.</p></div><div className="review-top-right"><div className={`result-stamp ${goodForUs ? 'result-good' : 'result-bad'}`}><span>{goodForUs ? <Check size={16} /> : <ArrowDownRight size={16} />}</span>{ourContract ? (review.success ? 'CONTRACT MADE' : 'CONTRACT MISSED') : (review.success ? 'OPPONENTS MADE IT' : 'DEFENCE HELD')}{review.stake > 1 && <b className="stake-chip">{review.stake}×</b>}</div>{review.matchWinner === null && <button className="button-primary" onClick={onNext}>Deal next hand <ArrowUpRight size={16} aria-hidden="true" /></button>}</div></div>
     <div className="review-stat-grid">
-      <div className="review-stat"><span>Winning bid</span><strong>{review.bid}</strong><small>{PLAYER_NAMES[review.bidder]} · {review.reverse ? 'No trump · Reverse' : review.trumpSuit ? `${SUIT_SYMBOL[review.trumpSuit]} ${SUIT_LABEL[review.trumpSuit]}` : 'Hidden trump'}</small></div>
+      <div className="review-stat"><span>Winning bid</span><strong>{review.bid}</strong><small><SuitText text={`${PLAYER_NAMES[review.bidder]} · ${review.reverse ? 'No trump · Reverse' : review.trumpSuit ? `${SUIT_SYMBOL[review.trumpSuit]} ${SUIT_LABEL[review.trumpSuit]}` : 'Hidden trump'}`} /></small></div>
       <div className="review-stat"><span>Contract target</span><strong>{review.target}</strong><small>{review.pair ? `Royal pair by ${PLAYER_NAMES[review.pair.player]}` : 'Bid unchanged'}{review.stake > 1 ? ` · ${review.stake} match points` : ''}</small></div>
       <div className="review-stat"><span>Your team</span><strong>{review.teamPoints[0]} <small>/ 28{review.lastTrickBonus ? '+1' : ''}</small></strong><small>{review.cardPoints[0]} card points{review.lastTrickBonus ? ' + last trick bonus' : ''}</small></div>
       <div className="review-stat"><span>Opponents</span><strong>{review.teamPoints[1]}</strong><small>{review.cardPoints[1]} card points</small></div>
@@ -377,9 +450,9 @@ function ReviewScreen({ game, onNext, onNewMatch, onSelectTrick, selectedTrick, 
         {coachEnabled && analysisError && <p className="analysis-error" role="alert">{analysisError}</p>}
         {insights.bullets.length > 0 && <section className="review-insights">
           <h4>What the hand showed</h4>
-          <ul>{insights.bullets.map((bullet, index) => <li key={index} dangerouslySetInnerHTML={{ __html: bullet }} />)}</ul>
+          <ul>{insights.bullets.map((bullet, index) => <li key={index} dangerouslySetInnerHTML={{ __html: colorizeSuitSymbols(bullet) }} />)}</ul>
         </section>}
-        <div className="lesson-callout"><Sparkles size={18} aria-hidden="true" /><div><strong>Key lesson</strong><p>{insights.lesson}</p></div></div>
+        <div className="lesson-callout"><Sparkles size={18} aria-hidden="true" /><div><strong>Key lesson</strong><p><SuitText text={insights.lesson} /></p></div></div>
         {ourContract && <div className="contract-note"><Flag size={15} aria-hidden="true" /><span>Your side made the bid. Contract outcome is based on points captured by the bidding team.</span></div>}
       </section>
       <section className="review-panel trick-review-panel">
@@ -420,6 +493,7 @@ export default function App() {
   const [bidChoice, setBidChoice] = useState(16)
   const processedHand = useRef<number | null>(null)
   const analyzedHand = useRef<number | null>(null)
+  const autoAnalysisKey = useRef('')
   const evaluatorWorker = useRef<Worker | null>(null)
   const nextEvaluationId = useRef(0)
   const pendingEvaluation = useRef<PendingEvaluation | null>(null)
@@ -432,6 +506,7 @@ export default function App() {
   const [tipHistory, setTipHistory] = useState<CoachInsight[]>([])
   const [tipIndex, setTipIndex] = useState(-1)
   const lastTipKey = useRef('')
+  const lastPlayKey = useRef('')
   const [announcement, setAnnouncement] = useState<TableAnnouncement | null>(null)
   const previousReveal = useRef(game.trumpRevealed)
   const previousPair = useRef<string | null>(null)
@@ -511,7 +586,9 @@ export default function App() {
       // Search inside the timer so StrictMode's development double-effect does not run the
       // evaluator twice, and so the table stays responsive while the bot is "thinking".
       timer = window.setTimeout(() => {
-        const card = chooseBotCardWithSearch(game, player)
+        const card = preferences.searchBots
+          ? chooseBotCardWithSearch(game, player, { samples: preferences.botSamples })
+          : chooseBotCard(game, player)
         setGame(current => current.version === version ? playCard(current, player, card.id) : current)
       }, 520 + Math.random() * 280)
     }
@@ -525,6 +602,7 @@ export default function App() {
     }
   }, [game.phase, game.handId, game.review, preferences.coach])
 
+
   const sortedHand = useMemo(() => sortHand(game.hands[0] || []), [game.hands])
   const maxBid = maxBidFor(game.rules)
   const target = contractTarget(game)
@@ -535,6 +613,15 @@ export default function App() {
     game.stakeStage === 'defend' ? teamOf(0) !== teamOf(game.bidder) : teamOf(0) === teamOf(game.bidder)
   )
   const currentLegal = useMemo(() => userCanPlay ? legalCardsFor(game, 0).map(card => card.id) : [], [game, userCanPlay])
+  // Start the sampled comparison automatically on the human's turn so the live tip can
+  // become a hybrid verdict without waiting for a button press.
+  useEffect(() => {
+    if (!preferences.coach || !userCanPlay || !evaluatorWorker.current) return
+    const key = `${game.handId}:${game.version}:${preferences.compareSamples}`
+    if (autoAnalysisKey.current === key) return
+    autoAnalysisKey.current = key
+    requestMoveAnalysis()
+  }, [preferences.coach, preferences.compareSamples, userCanPlay, game.handId, game.version])
   const currentTrickPoints = game.currentTrick.reduce((sum, item) => sum + item.card.points, 0)
   const trumpVisible = !!game.trumpSuit && (game.phase === 'review' || game.trumpRevealed || game.bidder === 0)
   const reverseVisible = game.reverse && (game.trumpRevealed || game.bidder === 0)
@@ -548,18 +635,113 @@ export default function App() {
   const targetPct = target > 0 ? Math.min(100, (contractPoints / target) * 100) : 0
   const insight = useMemo(() => coachInsight(game), [game])
   const reading = useMemo(() => tableReading(game), [game])
+  const coachObjective = useMemo(() => {
+    const tricksLeft = Math.max(0, 8 - game.tricks.length)
+    if (game.phase === 'auction') {
+      if (game.auctionComplete && game.bidder !== null) return `Auction won by ${PLAYER_NAMES[game.bidder]} at ${game.highBid}`
+      if (game.highBid === null) return 'Auction · open at 16 or pass'
+      return game.highBid >= maxBid
+        ? `Auction · maximum bid ${maxBid}`
+        : `Auction · high bid ${game.highBid} · next bid ${game.highBid + 1}`
+    }
+    if (game.phase === 'trump') return `Contract target ${target} · choose trump`
+    if (game.phase === 'stake') return `Stake · hand worth ${game.stake} match point${game.stake === 1 ? '' : 's'}`
+    if (game.phase === 'play' && game.bidder !== null) {
+      const contractTeam = teamOf(game.bidder)
+      const have = pointTotals[contractTeam]
+      const trickLabel = `${tricksLeft} trick${tricksLeft === 1 ? '' : 's'} left`
+      return contractTeam === 0
+        ? `Make ${target} · ${have}/${target} · ${trickLabel}`
+        : `Defend ${target} · they have ${have}/${target} · ${trickLabel}`
+    }
+    return undefined
+  }, [game.phase, game.auctionComplete, game.bidder, game.highBid, game.stake, game.tricks.length, maxBid, target, pointTotals])
+  const hybrid = useMemo<{ insight: CoachInsight; note?: string }>(() => {
+    const rule = insight
+    if (!preferences.coach || !userCanPlay || !moveAnalysis || moveAnalysis.version !== game.version) {
+      return { insight: rule }
+    }
+    const result = moveAnalysis.result
+    const best = result.options[0]
+    if (!best) return { insight: rule }
+    const ruleOption = rule.recommendedCardId
+      ? result.options.find(option => option.cardId === rule.recommendedCardId)
+      : undefined
+    const samples = result.samples
+    const error = Math.round(best.standardError * 196)
+    const percent = (rate: number) => Math.round(rate * 100)
+    const note = `Sampled model: ${best.cardLabel} at ${percent(best.teamGoalRate)}%${ruleOption && ruleOption.cardId !== best.cardId ? ` vs ${ruleOption.cardLabel} at ${percent(ruleOption.teamGoalRate)}%` : ''} over ${samples} deals (±${error} pp).`
+    if (!ruleOption) return { insight: rule, note }
+    if (best.cardId === ruleOption.cardId) {
+      return {
+        insight: {
+          ...rule,
+          source: 'hybrid',
+          bullets: [...rule.bullets, `The sampled model agrees: ${best.cardLabel} is also the top-rated play (${percent(best.teamGoalRate)}% over ${samples} deals).`],
+        },
+        note,
+      }
+    }
+    const goalEdge = best.teamGoalRate - ruleOption.teamGoalRate
+    if (Math.abs(goalEdge) < 0.005) {
+      return {
+        insight: {
+          ...rule,
+          source: 'hybrid',
+          bullets: [...rule.bullets, `The sampled model sees no meaningful difference between ${best.cardLabel} and ${ruleOption.cardLabel} (${percent(best.teamGoalRate)}% each over ${samples} deals).`],
+        },
+        note,
+      }
+    }
+    const utilityEdge = best.expectedUtility - ruleOption.expectedUtility
+    const requiredEdge = rule.confidence === 'certain' ? 0.1 : 0.08
+    const clear = goalEdge >= requiredEdge || (goalEdge > 0 && utilityEdge >= 0.12)
+    if (!clear) {
+      return {
+        insight: {
+          ...rule,
+          source: 'hybrid',
+          bullets: [...rule.bullets, `The sampled model is close: ${best.cardLabel} ${percent(best.teamGoalRate)}% vs ${ruleOption.cardLabel} ${percent(ruleOption.teamGoalRate)}%. The visible rule is a fair tie-break.`],
+        },
+        note,
+      }
+    }
+    const edge = Math.max(1, Math.round(goalEdge * 100))
+    return {
+      insight: {
+        ...rule,
+        source: 'hybrid',
+        confidence: 'estimate',
+        tone: best.teamGoalRate >= 0.5 ? 'good' : 'neutral',
+        title: `${best.cardLabel} is the stronger percentage play`,
+        summary: `The rule coach preferred ${ruleOption.cardLabel}. Over ${samples} plausible deals, the model gives ${best.cardLabel} a ${percent(best.teamGoalRate)}% chance of your team’s objective versus ${percent(ruleOption.teamGoalRate)}% — a ${edge}-point edge.`,
+        plan: `Take the percentage play: ${best.cardLabel}. The model is planning the rest of the hand, not only this trick.`,
+        bullets: [
+          `Rule view: ${ruleOption.cardLabel} — ${rule.title}.`,
+          `Sampled view: ${best.cardLabel} ${percent(best.teamGoalRate)}% vs ${ruleOption.cardLabel} ${percent(ruleOption.teamGoalRate)}% over ${samples} deals (±${error} pp).`,
+          ...(rule.confidence === 'certain' ? ['The rule card still does what it says; the model is choosing a different plan for the remaining tricks.'] : []),
+        ],
+        action: `Play ${best.cardLabel}`,
+        recommendedCardId: best.cardId,
+      },
+      note,
+    }
+  }, [preferences.coach, userCanPlay, moveAnalysis, game.version, insight])
   const modelNote = useMemo(() => {
     if (!preferences.coach || !userCanPlay) return undefined
-    if (analysisLoading === 'moves') return 'Sampling 96 plausible deals for every legal card…'
-    if (!moveAnalysis || moveAnalysis.version !== game.version) return undefined
-    const top = moveAnalysis.result.options[0]
-    if (!top) return undefined
-    const runnerUp = moveAnalysis.result.options[1]
-    const agreement = top.cardId === insight.recommendedCardId
-      ? 'This agrees with the card-reading advice above.'
-      : 'The two views differ, so treat the model number as one input rather than an answer.'
-    return `Sampled model: ${top.cardLabel} is best at ${Math.round(top.teamGoalRate * 100)}%${runnerUp ? ` (vs ${runnerUp.cardLabel} at ${Math.round(runnerUp.teamGoalRate * 100)}%)` : ''} across ${moveAnalysis.result.samples} deals. ${agreement}`
-  }, [analysisLoading, game.version, insight.recommendedCardId, moveAnalysis, preferences.coach, userCanPlay])
+    if (analysisLoading === 'moves') return `Sampling ${preferences.compareSamples} plausible deals for every legal card…`
+    return hybrid.note
+  }, [preferences.coach, preferences.compareSamples, userCanPlay, analysisLoading, hybrid])
+  const lastPlay = useMemo(() => lastPlayInsight(game), [game])
+  const liveInsight = useMemo(() => {
+    if (game.phase === 'play' && !game.pausedTrick) {
+      return game.currentPlayer === 0 ? hybrid.insight : observationInsight(game)
+    }
+    if (game.phase === 'auction' && (game.auctionComplete || game.currentPlayer !== 0)) return observationInsight(game)
+    if (game.phase === 'trump' && game.bidder !== 0) return observationInsight(game)
+    if (game.phase === 'stake' && !userStakeTurn) return observationInsight(game)
+    return hybrid.insight
+  }, [game, hybrid, userStakeTurn])
   const myTurn = userCanBid || (game.phase === 'trump' && game.bidder === 0) || userCanPlay || userStakeTurn
   const advisedBid = useMemo(() => {
     const report = openingReport(game.hands[0] ?? [])
@@ -573,6 +755,7 @@ export default function App() {
   // Reset the history before the advice effect can append the new hand's first tip.
   useEffect(() => {
     lastTipKey.current = ''
+    lastPlayKey.current = ''
     setTipHistory([])
     setTipIndex(-1)
     setAnnouncement(null)
@@ -580,17 +763,26 @@ export default function App() {
   // Keep one entry per distinct piece of advice so the arrow keys can revisit earlier tips.
   useEffect(() => {
     if (!preferences.coach) return
-    const key = insightKey(insight)
+    const key = insightKey(liveInsight)
     if (key === lastTipKey.current) return
     lastTipKey.current = key
-    setTipHistory(history => [...history, insight].slice(-40))
-  }, [insight, preferences.coach])
+    setTipHistory(history => [...history, liveInsight].slice(-40))
+  }, [liveInsight, preferences.coach])
+  // Keep each last-play explanation in the history as well, so the arrow keys can
+  // revisit how an opponent or partner was reading the table.
+  useEffect(() => {
+    if (!preferences.coach || !lastPlay) return
+    const key = insightKey(lastPlay)
+    if (key === lastPlayKey.current) return
+    lastPlayKey.current = key
+    setTipHistory(history => [...history, lastPlay].slice(-40))
+  }, [lastPlay, preferences.coach])
   // Show the live insight immediately; the history effect catches up after the render.
   const coachTips = useMemo(() => {
     const last = tipHistory[tipHistory.length - 1]
-    const same = last && insightKey(last) === insightKey(insight)
-    return same ? tipHistory : [...tipHistory, insight].slice(-40)
-  }, [tipHistory, insight])
+    const same = last && insightKey(last) === insightKey(liveInsight)
+    return same ? tipHistory : [...tipHistory, liveInsight].slice(-40)
+  }, [tipHistory, liveInsight])
   useEffect(() => {
     if (previousReveal.current === game.trumpRevealed) return
     previousReveal.current = game.trumpRevealed
@@ -660,7 +852,7 @@ export default function App() {
     setAnalysisLoading('moves')
     // Strip private opponent hands and hidden trump before the snapshot enters the worker.
     const safeState = sanitizeStateForEvaluation(game, 0)
-    evaluatorWorker.current.postMessage({ requestId, kind: 'moves', state: safeState, samples: 96, seed: Math.floor(Math.random() * 0x7fffffff) })
+    evaluatorWorker.current.postMessage({ requestId, kind: 'moves', state: safeState, samples: preferences.compareSamples, seed: Math.floor(Math.random() * 0x7fffffff) })
   }
 
   function requestDeepReview() {
@@ -671,7 +863,7 @@ export default function App() {
     setDeepReview(null)
     setAnalysisLoading('review')
     const safeDecisions = game.decisions.map(decision => ({ ...decision, trumpSuit: decision.knownTrumpSuit }))
-    evaluatorWorker.current.postMessage({ requestId, kind: 'review', decisions: safeDecisions, samples: 48, seed: Math.floor(Math.random() * 0x7fffffff) })
+    evaluatorWorker.current.postMessage({ requestId, kind: 'review', decisions: safeDecisions, samples: preferences.reviewSamples, seed: Math.floor(Math.random() * 0x7fffffff) })
   }
 
   function askForHint() {
@@ -783,7 +975,7 @@ export default function App() {
                   </div>
                 </>}
                 {game.phase === 'trump' && <div className="trump-pips" aria-hidden="true">{SUITS.map(suit => <span key={suit} className={`trump-pip ${isRedSuit(suit) ? 'suit-red' : 'suit-light'}`}>{SUIT_SYMBOL[suit]}</span>)}</div>}
-                <div className="table-message" role="status" aria-live="polite">{game.message}</div>
+                <div className="table-message" role="status" aria-live="polite"><SuitText text={game.message} /></div>
               </div> : <>
                 <div className="table-center">
                   <div className="center-logo" aria-hidden="true"><span>29</span><i>♠</i></div>
@@ -792,7 +984,7 @@ export default function App() {
                     : game.phase === 'stake'
                       ? <><strong className="center-title">Before the first trick</strong><span className="center-subtitle">Contract {game.highBid} · target {target}</span></>
                       : <><strong className="center-title">Trick {game.tricks.length + 1} <span>of 8</span></strong><span className="center-subtitle">{game.currentTrick.length === 0 ? 'Lead any suit' : `${SUIT_LABEL[game.currentTrick[0].card.suit]} led · ${currentTrickPoints} point${currentTrickPoints === 1 ? '' : 's'} on table`}</span></>}
-                  {!game.pausedTrick && <div className="table-message" role="status" aria-live="polite">{game.message}</div>}
+                  {!game.pausedTrick && <div className="table-message" role="status" aria-live="polite"><SuitText text={game.message} /></div>}
                 </div>
                 {[0, 1, 2, 3].map(player => {
                   const played = displayTrick.find(play => play.player === player)
@@ -861,9 +1053,9 @@ export default function App() {
               })}
               {sortedHand.length === 0 && <div className="empty-hand">Your cards have been played.</div>}
             </div>
-            {game.seventhCard && game.bidder === 0 && <div className="seventh-note"><Sparkles size={16} aria-hidden="true" /><span>Seventh card set aside: <b>{cardText(game.seventhCard)}</b> — trump is <b>{SUIT_LABEL[game.seventhCard.suit]}</b>, hidden from the table until the first void.</span></div>}
+            {game.seventhCard && game.bidder === 0 && <div className="seventh-note"><Sparkles size={16} aria-hidden="true" /><span>Seventh card set aside: <b><SuitText text={cardText(game.seventhCard)} /></b> - trump is <b>{SUIT_LABEL[game.seventhCard.suit]}</b>, hidden from the table until the first void.</span></div>}
             {userCanBid && <div className="action-bar">
-              <div className="action-copy"><h3>Your bid</h3><p>{game.highBid === null ? 'Open at 16 or pass. Only bid if the hand can support it.' : `Beat the current bid of ${game.highBid}, or pass to leave the auction.`}</p>{preferences.coach && <span className="action-advice">Coach: {insight.action ?? 'Pass'}</span>}</div>
+              <div className="action-copy"><h3>Your bid</h3><p>{game.highBid === null ? 'Open at 16 or pass. Only bid if the hand can support it.' : `Beat the current bid of ${game.highBid}, or pass to leave the auction.`}</p>{preferences.coach && <span className="action-advice">Coach: <SuitText text={insight.action ?? 'Pass'} /></span>}</div>
               <div className="bid-controls">
                 <label className="bid-select-wrap"><span>Bid</span><select value={Math.min(maxBid, Math.max(minBid, bidChoice))} onChange={e => setBidChoice(Number(e.target.value))} aria-label="Choose bid amount">{Array.from({ length: Math.max(0, maxBid - minBid + 1) }, (_, index) => minBid + index).map(value => <option key={value} value={value}>{value} points</option>)}</select></label>
                 <button className={coachAdvisesPass ? 'button-primary pass-button' : 'button-secondary pass-button'} onClick={() => humanBid(null)}>Pass</button>
@@ -872,7 +1064,7 @@ export default function App() {
             </div>}
             {game.phase === 'auction' && !userCanBid && !game.auctionComplete && <div className="waiting-strip"><Clock3 size={16} aria-hidden="true" /><span>{PLAYER_NAMES[game.currentPlayer]} is considering the hand. Watch how the bidding develops.</span><span className="thinking-dots" aria-hidden="true"><i /><i /><i /></span></div>}
             {preferences.coach && <div className="dock-coach dock-coach-mobile" id="coach-panel" aria-label="Coach insight">
-              <CoachFeed tips={coachTips} index={tipIndex} onIndex={setTipIndex} modelNote={modelNote} />
+              <CoachFeed tips={coachTips} index={tipIndex} onIndex={setTipIndex} modelNote={modelNote} objective={coachObjective} lastPlay={lastPlay} />
             </div>}
           </section>
           {preferences.coach && analysisError && game.phase === 'play' && userCanPlay && <p className="analysis-error" role="alert">{analysisError}</p>}
@@ -883,19 +1075,19 @@ export default function App() {
       <aside className="right-rail">
         {preferences.coach && game.phase !== 'review' && <section className="rail-panel rail-panel-coach" aria-label="Coach insight">
           <div className="rail-head"><h2>Coach</h2><Brain size={16} aria-hidden="true" /></div>
-          <CoachFeed tips={coachTips} index={tipIndex} onIndex={setTipIndex} modelNote={modelNote} />
+          <CoachFeed tips={coachTips} index={tipIndex} onIndex={setTipIndex} modelNote={modelNote} objective={coachObjective} lastPlay={lastPlay} />
         </section>}
 
         {preferences.coach && <section className="rail-panel rail-panel-reading">
           <div className="rail-head"><h2>Card reading</h2><Eye size={16} aria-hidden="true" /></div>
-          <ul className="coach-reading">{reading.map((line, index) => <li key={index} dangerouslySetInnerHTML={{ __html: line }} />)}</ul>
+          <ul className="coach-reading">{reading.map((line, index) => <li key={index} dangerouslySetInnerHTML={{ __html: colorizeSuitSymbols(line) }} />)}</ul>
           <p className="rail-footnote"><ShieldCheck size={14} aria-hidden="true" /> Visible information only</p>
         </section>}
 
         <section className="rail-panel rail-panel-events">
           <div className="rail-head"><h2>Table events</h2><span className="rail-count">{game.log.length}</span></div>
           <ol className="event-list">
-            {game.log.slice(-7).reverse().map((entry, index) => <li className={`event-row ${index === 0 ? 'event-current' : ''}`} key={`${entry}-${index}`}><span className="event-bullet" aria-hidden="true" /><p>{entry}</p></li>)}
+            {game.log.slice(-7).reverse().map((entry, index) => <li className={`event-row ${index === 0 ? 'event-current' : ''}`} key={`${entry}-${index}`}><span className="event-bullet" aria-hidden="true" /><p><SuitText text={entry} /></p></li>)}
           </ol>
         </section>
 
@@ -927,7 +1119,7 @@ export default function App() {
         <div className="guide-rule"><span>05</span><div><h3>Call the seventh card</h3><p>Instead of naming trump, the bidder can call for the seventh card dealt to them. It sets trump sight unseen and stays out of their hand until trump is revealed. Once revealed, it joins the hand. Turn this rule off in settings.</p></div></div>
         <div className="guide-rule"><span>06</span><div><h3>Double and redouble</h3><p>After trump is set, the defenders may double the hand to 2 match points. The declaring side may redouble to 4. The contract target does not change. Turn this rule off in settings.</p></div></div>
         <div className="guide-rule"><span>07</span><div><h3>Declare Reverse</h3><p>Instead of a suit, the bidder may declare Reverse: no trump, with a 2 as the table indicator. The 2 stays face down; the first void exposes it and flips the ranking to 7 high, J low for that trick and every trick after. A royal pair cannot be declared. Turn this rule off in settings.</p></div></div>
-        <div className="guide-rule"><span>08</span><div><h3>Review fairly</h3><p>The coach flags clear opportunities when the visible trick allows a reliable comparison. It does not treat every unlucky outcome as a mistake.</p></div></div>
+        <div className="guide-rule"><span>08</span><div><h3>Review fairly</h3><p>The coach flags clear opportunities when the visible trick allows a reliable comparison. It does not treat every unlucky outcome as a mistake. While another seat acts, it switches to a table read; after a card lands, the Last Play strip explains what that card was trying to do.</p></div></div>
         <div className="guide-footnote"><CircleHelp size={14} /><span>Classic auction. Single-hand declarations and the Bangladesh-specific bidding sequence are not implemented.</span></div>
       </div>
       <div className="modal-bottom"><button className="button-primary" onClick={() => setShowGuide(false)}>Back to the table <ArrowUpRight size={15} /></button></div>
@@ -943,11 +1135,19 @@ export default function App() {
           <ToggleRow title="Double & redouble" description="Defenders may double to 2 match points; the declaring side may redouble to 4. Applies to the next hand." checked={preferences.double} onChange={() => setPreferences(current => ({ ...current, double: !current.double }))} />
           <ToggleRow title="Last-trick bonus (+1)" description="The winner of the eighth trick earns one additional point. Applies to the next hand." checked={preferences.lastTrickBonus} onChange={() => setPreferences(current => ({ ...current, lastTrickBonus: !current.lastTrickBonus }))} />
         </div>
-        <div className="settings-note"><Brain size={15} /><span>Bots sample up to 96 plausible unseen deals for each card and solve the final four tricks exactly. Their search never receives the real hidden hands.</span></div>
         <div className="settings-group">
           <h3 className="settings-group-title">Coach</h3>
           <ToggleRow title="Coach & hints" description="Show the live coach, card reading, hint button, move comparison, and post-hand model review. Applies immediately." checked={preferences.coach} onChange={() => setPreferences(current => ({ ...current, coach: !current.coach }))} />
+          <SelectRow title="Compare samples" description="Plausible unseen deals tested for every legal card. Higher is steadier and slower; 200 is a balanced default." value={preferences.compareSamples} options={COMPARE_SAMPLE_OPTIONS} suffix="deals" onChange={value => setPreferences(current => ({ ...current, compareSamples: value }))} />
+          <SelectRow title="Deep review samples" description="Deals per recorded decision after the hand. 200 is thorough; 400 is slower but steadier." value={preferences.reviewSamples} options={REVIEW_SAMPLE_OPTIONS} suffix="/ decision" onChange={value => setPreferences(current => ({ ...current, reviewSamples: value }))} />
         </div>
+        <div className="settings-note"><Target size={15} /><span>The live tip starts with the visible-card rule. When the sampled comparison finishes, its card and plan become the hybrid verdict; when the two views disagree, the tip explains both.</span></div>
+        <div className="settings-group">
+          <h3 className="settings-group-title">Bots</h3>
+          <ToggleRow title="Search-based bots" description="On: sample unseen deals and solve the final four tricks exactly. Off: faster visible-information heuristic bots." checked={preferences.searchBots} onChange={() => setPreferences(current => ({ ...current, searchBots: !current.searchBots }))} />
+          <SelectRow title="Bot search samples" description="Budget per bot move. The endgame uses fewer because each sampled deal is solved exactly. Higher is slower but more precise." value={preferences.botSamples} options={BOT_SAMPLE_OPTIONS} suffix="/ move" disabled={!preferences.searchBots} onChange={value => setPreferences(current => ({ ...current, botSamples: value }))} />
+        </div>
+        <div className="settings-note"><Brain size={15} /><span>Bot and coach searches are sanitized before sampling. They never receive the real hidden hands or the set-aside seventh card of another seat.</span></div>
         <div className="settings-note"><ShieldCheck size={15} /><span>Session statistics and these settings are stored locally in this browser. The current hand and its review remain in memory.</span></div>
         <div className="settings-summary"><span>Current hand</span><strong>{ruleSummary(game.rules)}</strong><span>Next hand</span><strong>{ruleSummary(preferences)}</strong></div>
       </div>

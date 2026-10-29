@@ -32,9 +32,13 @@ export interface CoachInsight {
   bullets: string[]
   /** A concrete instruction for the current decision. */
   action?: string
+  /** The one-sentence plan behind the action. */
+  plan?: string
   /** Candidate card the coach would play now, when one can be named. */
   recommendedCardId?: string | null
   confidence: 'certain' | 'estimate'
+  /** Rules-only advice, a hybrid verdict, or a non-actionable table read. */
+  source?: 'rules' | 'hybrid' | 'observation'
 }
 
 export interface SuitReport {
@@ -154,6 +158,7 @@ export function bidInsight(state: GameState, player = 0): CoachInsight {
       tag: 'AUCTION WON', tone: ours ? 'good' : 'neutral', confidence: 'certain',
       title: `${bidderName} won the auction at ${state.highBid}`,
       summary: 'The auction is over. Read the final board, then continue to choose the contract.',
+      plan: `The contract target is ${state.highBid}. Continue when you are ready to choose trump.`,
       bullets: [
         `${ours ? 'Your' : 'The bidding'} side needs ${state.highBid} points. ${state.bidder === 0 ? 'You will choose trump next.' : `${PLAYER_NAMES[state.bidder]} will choose the contract next.`}`,
         ...(state.rules.reverse ? ['Reverse is available: no trump, with the ranking flipping to 7 high on the first void.'] : []),
@@ -181,6 +186,7 @@ export function bidInsight(state: GameState, player = 0): CoachInsight {
       tag: 'AUCTION', tone: 'neutral', confidence: 'certain',
       title: 'Let your partner carry this contract',
       summary: 'Your partner already has the highest bid. Passing keeps the target where your side chose it.',
+      plan: 'Pass now and support the contract your partner already owns. Raising would only make that target harder.',
       bullets,
       action: 'Pass',
     }
@@ -193,8 +199,9 @@ export function bidInsight(state: GameState, player = 0): CoachInsight {
     }
     return {
       tag: 'AUCTION', tone: 'good', confidence: 'estimate',
-      title: `This hand supports a bid around ${target}`,
-      summary: `Opening four cards give you a realistic base in ${suit}. Bid the number the cards support, not the number that scares the table.`,
+      title: `Bid ${target} with this hand`,
+      summary: `Your opening four are strongest in ${suit}. Bid the level the cards support; do not chase a higher number just to scare the table.`,
+      plan: `Bid ${target}. If partner takes over, pass and support their contract.`,
       bullets,
       action: `Bid ${target}`,
     }
@@ -204,8 +211,9 @@ export function bidInsight(state: GameState, player = 0): CoachInsight {
     bullets.push(`Opening at 16 needs more control than ${report.power.toFixed(1)}. A speculative opening is a bluff, not a plan.`)
     return {
       tag: 'AUCTION', tone: 'warn', confidence: 'estimate',
-      title: 'This hand is below the opening minimum',
+      title: 'Pass — this hand cannot open at 16',
       summary: `Your best trump suit is ${suit}, but it does not offer enough control to open at 16. Passing costs nothing and keeps your team out of a contract it cannot support.`,
+      plan: 'Pass. A rescue bid here would put your team in a contract the opening four cannot carry.',
       bullets,
       action: 'Pass',
     }
@@ -214,8 +222,9 @@ export function bidInsight(state: GameState, player = 0): CoachInsight {
   bullets.push(`The current bid is ${state.highBid}. Power ${report.power.toFixed(1)} falls short of the ${minBid} needed to overtake it, so a raise would be a bluff.`)
   return {
     tag: 'AUCTION', tone: 'warn', confidence: 'estimate',
-    title: `This hand does not justify ${minBid}`,
+    title: `Pass — this hand cannot support ${minBid}`,
     summary: `Your best trump suit is ${suit}, but it does not offer enough control for ${minBid}. Passing keeps your team out of a contract it cannot support.`,
+    plan: `Pass. Let the opponents carry a target your hand cannot beat.`,
     bullets,
     action: 'Pass',
   }
@@ -256,8 +265,9 @@ export function trumpInsight(state: GameState, player = 0): CoachInsight {
   }
   return {
     tag: 'TRUMP', tone: 'good', confidence: 'certain',
-    title: `${SUIT_LABEL[best.suit]} gives you the most control`,
-    summary: `You choose trump from these four cards only. Strength matters more than raw length, but the Jack–Nine pair is the strongest start available.`,
+    title: `Choose ${SUIT_LABEL[best.suit]} as trump`,
+    summary: `You choose trump from these four cards only. ${SUIT_LABEL[best.suit]} gives you the best mix of high cards and length; strength matters more than raw length.`,
+    plan: `Choose ${SUIT_LABEL[best.suit]}. Draw trumps with it first, then cash your point cards.`,
     bullets,
     action: `Choose ${SUIT_LABEL[best.suit]}${SUIT_SYMBOL[best.suit]}`,
   }
@@ -286,6 +296,7 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
       tag, tone: 'good', confidence: 'certain',
       title: `Declare the royal pair (${pairCards})`,
       summary: 'Your side won the last trick and both trump honours are still in your hand. The pair can be declared now, before you play either card.',
+      plan: `Declare the pair before either honour is played. ${effect}`,
       bullets: [effect, 'This is a public declaration: the table sees the pair and the target changes immediately.'],
       action: 'Declare pair',
     }
@@ -306,6 +317,7 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
       summary: ours
         ? 'The four cards are still on the table. Read them, then continue when you are ready for the next lead.'
         : 'The four cards are still on the table. Check what the opponents captured before the next lead.',
+      plan: 'Update the point count and the contract target from these four cards, then continue.',
       bullets,
     }
   }
@@ -366,7 +378,8 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
       return {
         tag, tone: 'good', confidence: 'certain',
         title: `Lead ${cardText(trumpControl.top)} to draw trumps`,
-        summary: 'With the top trump in hand, each round of trumps pulls one out of the opponents and protects your point cards.',
+        summary: 'You hold the highest remaining trump. Leading it forces the opponents to spend their trumps and protects your point cards.',
+        plan: 'Draw trumps first. Once the opponents are out of trumps, cash your point cards safely.',
         bullets,
         action: `Play ${cardText(trumpControl.top)}`,
         recommendedCardId: trumpControl.top.id,
@@ -380,8 +393,9 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
       if (line) bullets.push(line)
       return {
         tag, tone: 'good', confidence: 'certain',
-        title: `Lead ${cardText(choice.top)} from your strongest suit`,
-        summary: `You control ${SUIT_LABEL[choice.suit]}. Leading the top card collects the trick and keeps the suit safe for later.`,
+        title: `Lead ${cardText(choice.top)} — you hold the top ${SUIT_LABEL[choice.suit]}`,
+        summary: `Leading the top card in ${SUIT_LABEL[choice.suit]} collects the trick and keeps the suit safe for later.`,
+        plan: `Cash ${SUIT_LABEL[choice.suit]} now. Keep your other high cards for later tricks.`,
         bullets,
         action: `Play ${cardText(choice.top)}`,
         recommendedCardId: choice.top.id,
@@ -405,8 +419,11 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
       tag, tone: 'neutral', confidence: 'estimate',
       title: `Probe with a low ${SUIT_LABEL[safe.suit]}`,
       summary: knownReverse
-        ? 'You do not control a suit outright yet. Lead cheaply, expose the reverse when it suits you, and keep your new high cards (7s and 8s) for tricks you can win.'
-        : 'You do not control any suit outright yet. Lead cheaply, learn who is void, and keep your high cards for tricks you can win.',
+        ? 'You do not hold the top card in a suit outright yet. Lead cheaply, expose the reverse when it suits you, and keep your new high cards (7s and 8s) for tricks you can win.'
+        : 'You do not hold the top card in a suit outright yet. Lead cheaply, learn who is void, and keep your high cards for tricks you can win.',
+      plan: knownReverse
+        ? 'Lead low, reveal the reverse on your terms, and keep the 7s and 8s for the flipped ranking.'
+        : 'Lead low, learn the voids, and keep your high cards until a suit is safe.',
       bullets,
       action: `Play ${cardText(lowCard)}`,
       recommendedCardId: lowCard.id,
@@ -435,6 +452,7 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
       tag, tone: 'warn', confidence: 'estimate',
       title: `You are void in ${SUIT_LABEL[ledSuit]}`,
       summary: 'Playing off-suit forces the trump reveal. You cannot know yet whether that helps or hurts, so spend the least valuable card.',
+      plan: 'Spend the cheapest off-suit card. The trump suit is still hidden, so the rank of your card cannot secure this trick.',
       bullets,
       action: `Play ${cardText(lowest)} (lowest risk)`,
       recommendedCardId: lowest.id,
@@ -451,6 +469,7 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
           tag, tone: 'good', confidence: 'certain',
           title: `Your team has the trick — add ${cardText(bestPoint)}`,
           summary: 'With your partner winning and nobody left to beat it, every point card you throw in is captured by your team.',
+          plan: 'Add points while partner’s winning card is protected. No opponent can change this trick.',
           bullets,
           action: `Play ${cardText(bestPoint)}`,
           recommendedCardId: bestPoint.id,
@@ -460,8 +479,9 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
       bullets.push('No point cards are left to add, so keep your stronger cards for later tricks.')
       return {
         tag, tone: 'good', confidence: 'certain',
-        title: `Duck with ${cardText(cheapest)}`,
-        summary: 'Your partner already won the trick. Finishing with a low card keeps control in your hand.',
+        title: `Play low with ${cardText(cheapest)}`,
+        summary: 'Your partner already won the trick. Finishing with a low card keeps your stronger cards in hand.',
+        plan: 'Let partner’s card win. Save your high cards for a trick they can control later.',
         bullets,
         action: `Play ${cardText(cheapest)}`,
         recommendedCardId: cheapest.id,
@@ -476,8 +496,9 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
     if (line) bullets.push(line)
     return {
       tag, tone: 'neutral', confidence: 'certain',
-      title: 'Protect the lead your partner holds',
-      summary: `Your partner is ahead, but the trick can still change. Spend the least valuable card and keep control for a trick you can definitely win.`,
+      title: 'Partner is winning — play low',
+      summary: `Your partner is ahead, but ${playersAfter} opponent${playersAfter === 1 ? '' : 's'} still play${playersAfter === 1 ? 's' : ''} after you. Spend the least valuable card and keep your high cards for a trick you can definitely win.`,
+      plan: 'Do not overtake partner unless an opponent can still beat the trick. Keep your high cards for the next lead.',
       bullets,
       action: `Play ${cardText(safeCard)}`,
       recommendedCardId: safeCard.id,
@@ -500,7 +521,8 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
     return {
       tag, tone: 'good', confidence: 'certain',
       title: `Take the trick with ${cardText(cheapest)}`,
-      summary: 'Your opponents lead the trick. Overtaking with the cheapest winning card keeps your strongest controls for later.',
+      summary: 'Your opponents lead the trick. Overtaking with the cheapest winning card keeps your strongest cards for later.',
+      plan: 'Win this trick with the cheapest card that still does the job. Save your Jacks and Nines for later point tricks.',
       bullets,
       action: `Play ${cardText(cheapest)}`,
       recommendedCardId: cheapest.id,
@@ -516,9 +538,210 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
     tag, tone: 'warn', confidence: 'certain',
     title: `You cannot win this trick — discard ${cardText(discard)}`,
     summary: 'Concede cheaply. Keeping point cards in hand gives your team a chance to capture them in a trick it wins later.',
+    plan: 'Give up this trick at the lowest cost. Save your point cards for a trick your team can win.',
     bullets,
     action: `Play ${cardText(discard)}`,
     recommendedCardId: discard.id,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Off-turn table reads
+// ---------------------------------------------------------------------------
+
+/**
+ * A non-actionable read for the seat that is currently acting. This is what the coach
+ * shows while an opponent or partner is thinking, instead of pretending it is your turn.
+ * It uses only public information: the trick, known voids, the contract and the cards
+ * already played.
+ */
+export function observationInsight(state: GameState, player = 0): CoachInsight {
+  if (state.phase === 'auction') {
+    const actor = state.currentPlayer
+    const name = PLAYER_NAMES[actor]
+    if (state.auctionComplete) {
+      return {
+        tag: 'AUCTION COMPLETE', tone: 'neutral', confidence: 'certain', source: 'observation',
+        title: 'The auction is complete',
+        summary: `The contract is paused at ${state.highBid}. Review the final board, then continue to the trump choice.`,
+        plan: 'Read the final auction board before continuing. The target is fixed now.',
+        bullets: [
+          state.bidder !== null ? `${PLAYER_NAMES[state.bidder]} won the auction with ${state.highBid}.` : 'The auction has ended.',
+          'The trump choice is the next decision.',
+        ],
+      }
+    }
+    const nextBid = state.highBid === null ? 16 : state.highBid + 1
+    return {
+      tag: 'TABLE READ', tone: 'neutral', confidence: 'estimate', source: 'observation',
+      title: `${name} is considering the auction`,
+      summary: `The high bid is ${state.highBid ?? 'not open'}. ${name} will raise only if the opening four support ${nextBid}; a pass usually means their best suit falls short.`,
+      plan: `Watch whether ${name} raises or passes. The level tells you how strong their opening four are.`,
+      bullets: [
+        state.highBid === null ? 'The opening minimum is 16.' : `The next bid is ${nextBid}.`,
+        'A bot uses the same public auction standard as the table: thin hands pass, supported hands raise.',
+      ],
+    }
+  }
+
+  if (state.phase === 'trump') {
+    const bidder = state.bidder ?? 0
+    return {
+      tag: 'CONTRACT READ', tone: 'neutral', confidence: 'estimate', source: 'observation',
+      title: `${PLAYER_NAMES[bidder]} is choosing the contract`,
+      summary: 'The bidder chooses trump from the opening four, calls the seventh card, or declares Reverse. The choice stays hidden until the first void.',
+      plan: 'Watch the first suit they lead and whether the trump indicator flips. That tells you where their strength sits.',
+      bullets: [
+        `Contract target: ${contractTarget(state)} points.`,
+        state.rules.reverse ? 'Reverse is available: no trump, with the ranking flipping on the first void.' : 'The trump suit is hidden.',
+      ],
+    }
+  }
+
+  if (state.phase === 'stake') {
+    const doubling = state.stakeStage === 'defend'
+    return {
+      tag: 'STAKE READ', tone: 'neutral', confidence: 'estimate', source: 'observation',
+      title: doubling ? 'The defenders are deciding whether to double' : 'The declaring side is deciding whether to redouble',
+      summary: doubling
+        ? 'A double means the defenders expect the contract to fail; a pass keeps the hand at one match point.'
+        : 'A redouble means the declaring side is confident the contract is safe; otherwise the hand stays doubled.',
+      plan: 'Watch the decision: a double or redouble is a public statement about how safe the contract looks.',
+      bullets: [
+        `The hand is currently worth ${doubling ? 1 : 2} match point${doubling ? '' : 's'} before the decision.`,
+        `The contract target remains ${contractTarget(state)}.`,
+      ],
+    }
+  }
+
+  if (state.phase !== 'play') {
+    return {
+      tag: 'TABLE READ', tone: 'neutral', confidence: 'certain', source: 'observation',
+      title: 'Read the table before the next decision',
+      summary: 'The next action belongs to another seat. Use the visible cards and the contract count to update your plan.',
+      plan: 'Follow the points and the voids; they decide which suits are safe.',
+      bullets: [],
+    }
+  }
+
+  const actor = state.currentPlayer
+  const name = PLAYER_NAMES[actor]
+  const trick = state.currentTrick
+  const ledSuit = trick[0]?.card.suit
+  const voids = knownVoids(state)
+  const trickPoints = trick.reduce((sum, play) => sum + play.card.points, 0)
+  const knownTrump = state.trumpRevealed && !state.reverse ? state.trumpSuit : null
+  const currentWinner = trick.length > 0 ? winnerOfTrick(trick, state.trumpSuit, state.trumpRevealed, state.reverse && state.trumpRevealed) : null
+  const line = contractLine(state, player)
+  const unseen = unseenCards(state, player)
+  const trumpsUnseen = knownTrump ? unseen.filter(card => card.suit === knownTrump).length : 0
+  const bullets = [`Public cards only: ${trick.length} card${trick.length === 1 ? '' : 's'} on the table for ${trickPoints} point${trickPoints === 1 ? '' : 's'}.`]
+  const actorVoids = [...voids[actor]].map(suit => SUIT_LABEL[suit])
+  if (trick.length === 0 && actorVoids.length) bullets.push(`${name} has shown void in ${actorVoids.join(', ')}; those suits are not lead options.`)
+  if (knownTrump) bullets.push(`${trumpsUnseen} trump${trumpsUnseen === 1 ? '' : 's'} remain unseen.`)
+  else if (state.reverse && state.trumpRevealed) bullets.push('No trump: Reverse is active, so 7 is high and J is low.')
+  else bullets.push('The contract mode is still hidden. A void is the next public information.')
+  if (line) bullets.push(line)
+
+  if (trick.length === 0) {
+    bullets.push('Likely lead: a low probe, a trump draw, or a point card protected by a higher card.')
+    return {
+      tag: 'TABLE READ', tone: 'neutral', confidence: 'estimate', source: 'observation',
+      title: `${name} is on lead`,
+      summary: `A low lead is usually a probe; a trump lead usually tries to draw trumps; a point card usually has a higher card behind it. Watch the first card to learn ${name}'s plan.`,
+      plan: `Do not commit your high cards yet. Read the suit and the size of the lead before you choose your response.`,
+      bullets,
+    }
+  }
+
+  const actorVoid = !!ledSuit && voids[actor].has(ledSuit)
+  const winnerName = currentWinner === null ? 'nobody' : PLAYER_NAMES[currentWinner]
+  const partnerWinning = currentWinner !== null && teamOf(currentWinner) === teamOf(actor)
+  bullets.push(actorVoid
+    ? 'Likely action: ruff if they still hold trump, otherwise discard a low card.'
+    : partnerWinning
+      ? 'Likely action: duck and let their partner keep the trick.'
+      : 'Likely action: try to win with the cheapest card, otherwise discard low.')
+  return {
+    tag: 'TABLE READ', tone: 'neutral', confidence: 'estimate', source: 'observation',
+    title: `${name} is following ${SUIT_LABEL[ledSuit!]}`,
+    summary: actorVoid
+      ? `${name} has already shown void in ${SUIT_LABEL[ledSuit!]}. They can ruff if they still hold trump, otherwise they must discard.`
+      : `${name} must follow ${SUIT_LABEL[ledSuit!]} if possible. ${winnerName} currently wins the trick.`,
+    plan: `Watch whether ${name} follows, ruffs, or discards. That tells you their shape for the next lead.`,
+    bullets: [
+      ...bullets,
+      `Current winner: ${winnerName}. ${trickPoints} point${trickPoints === 1 ? '' : 's'} at stake.`,
+    ],
+  }
+}
+
+/**
+ * Explain the last card a non-human seat played. This is a public read of the table,
+ * not a claim about the actual hidden hand.
+ */
+export function lastPlayInsight(state: GameState, player = 0): CoachInsight | null {
+  if (state.phase !== 'play') return null
+  const paused = state.pausedTrick
+  const plays = paused?.plays ?? state.currentTrick
+  if (plays.length === 0) return null
+  const last = plays[plays.length - 1]
+  if (last.player === player) return null
+  const name = PLAYER_NAMES[last.player]
+  const card = last.card
+  const ledSuit = plays[0].card.suit
+  const followed = card.suit === ledSuit
+  const isLead = plays.length === 1
+  const knownTrump = state.trumpRevealed && !state.reverse ? state.trumpSuit : null
+  const isTrump = !!knownTrump && card.suit === knownTrump
+  const reverseActive = state.reverse && state.trumpRevealed
+  const winner = paused ? paused.winner : winnerOfTrick(plays, state.trumpSuit, state.trumpRevealed, reverseActive)
+  const winningNow = winner === last.player
+  const trickPoints = paused ? paused.points : plays.reduce((sum, play) => sum + play.card.points, 0)
+  const points = card.points
+  let summary: string
+  let plan: string
+
+  if (isLead) {
+    if (isTrump) {
+      summary = `${name} led trump to draw trumps and cut down future ruffs.`
+      plan = 'Expect more trump leads. Keep your point cards protected.'
+    } else if (points > 0) {
+      summary = `${name} led ${cardText(card)}, a ${points}-point card. A point lead usually means a higher card in the same suit is behind it.`
+      plan = `Do not treat ${SUIT_LABEL[card.suit]} as safe just because ${cardText(card)} is on the table.`
+    } else {
+      summary = `${name} led a low ${SUIT_LABEL[card.suit]}. That is usually a probe: keep the high cards and learn who is void.`
+      plan = `Expect ${name} to hold higher cards in ${SUIT_LABEL[card.suit]}.`
+    }
+  } else if (!followed) {
+    if (isTrump) {
+      summary = `${name} was void in ${SUIT_LABEL[ledSuit]} and ruffed with ${cardText(card)}.`
+      plan = `Their void is public now. Avoid leading ${SUIT_LABEL[ledSuit]} while they can still ruff.`
+    } else {
+      summary = `${name} was void in ${SUIT_LABEL[ledSuit]} and discarded ${cardText(card)}, saving trump and point cards.`
+      plan = `They are void in ${SUIT_LABEL[ledSuit]}; a lead there can be ruffed if they still hold trump.`
+    }
+  } else if (winningNow) {
+    summary = paused
+      ? `${name} played ${cardText(card)}, and it won the trick. That usually keeps stronger cards in the suit for later.`
+      : `${name} played ${cardText(card)}, which currently wins the trick. That usually keeps stronger cards in the suit for later.`
+    plan = 'They have the trick; expect their stronger cards to appear in a later trick.'
+  } else {
+    const pointLine = points > 0 ? ` It adds ${points} point${points === 1 ? '' : 's'} to the trick.` : ''
+    summary = `${name} followed with ${cardText(card)}, but ${PLAYER_NAMES[winner]} ${paused ? 'won' : 'currently wins'} the trick.${pointLine}`
+    plan = 'They are conceding this trick cheaply; the winner captures the points.'
+  }
+
+  const ours = teamOf(last.player) === teamOf(player)
+  return {
+    tag: 'LAST PLAY', tone: ours ? (winningNow ? 'good' : 'neutral') : (winningNow ? 'warn' : 'neutral'), confidence: 'certain', source: 'observation',
+    title: `${name} played ${cardText(card)}`,
+    summary,
+    plan,
+    bullets: [
+      `${trickPoints} point${trickPoints === 1 ? '' : 's'} on the table. Current winner: ${PLAYER_NAMES[winner]}.`,
+      isLead ? 'This was the lead, so it set the suit for the trick.' : followed ? `They followed ${SUIT_LABEL[ledSuit]}.` : `They were void in ${SUIT_LABEL[ledSuit]}.`,
+    ],
   }
 }
 
@@ -703,6 +926,7 @@ export function stakeInsight(state: GameState, player = 0): CoachInsight {
       tag: 'STAKES', tone: 'neutral', confidence: 'certain',
       title: 'Play the hand at the current stake',
       summary: 'No double is active. The hand is worth one match point to the bidding team.',
+      plan: 'Play the hand at the normal stake. The target is unchanged.',
       bullets: [],
     }
   }
@@ -730,6 +954,9 @@ export function stakeInsight(state: GameState, player = 0): CoachInsight {
     summary: doubling
       ? 'The defenders can double before the first trick. The bidding team keeps the same target; only the match-point swing changes.'
       : 'The defenders doubled. Your side can redouble to make the hand worth four match points.',
+    plan: doubling
+      ? 'Double only when you expect the contract to fail. Otherwise play on at one match point.'
+      : 'Redouble only when the contract is comfortably inside what your side can make.',
     bullets,
     action: doubling ? 'Double if the contract looks short' : 'Redouble only with a strong contract',
   }
@@ -747,5 +974,3 @@ export function coachInsight(state: GameState, player = 0): CoachInsight {
     bullets: [],
   }
 }
-
-
