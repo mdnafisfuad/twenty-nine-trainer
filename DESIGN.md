@@ -2,193 +2,184 @@
 name: Twenty-Nine Trainer
 description: A local-first Twenty-Nine practice table with a fair-information coach.
 colors:
-  felt-deep: "#0b1310"
-  felt: "#14231b"
-  felt-raised: "#1b3323"
-  panel-ink: "#101a15"
-  line: "rgba(200, 222, 204, 0.15)"
-  text: "#eef5ee"
-  text-soft: "#a9bbad"
-  lime: "#bff576"
-  lime-ink: "#15220f"
-  gold: "#eece90"
-  signal-red: "#ff9691"
+  page: "#0d0f0d"
+  surface: "#141714"
+  surface-raised: "#1a1e1a"
+  line: "rgba(233, 236, 227, 0.09)"
+  text: "#e9ece3"
+  text-soft: "#b8bfb4"
+  text-muted: "#8c9489"
+  brass: "#c7a86a"
+  brass-soft: "#dfc99b"
+  ivory: "#efe9da"
+  felt: "#1c4f38"
+  card: "#f5f0e3"
+  card-red: "#a94040"
+  card-ink: "#1c211b"
+  positive: "#8fbf9a"
+  negative: "#d67c74"
 typography:
   display:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    fontSize: "2rem"
-    fontWeight: 700
-    lineHeight: 1.15
-    letterSpacing: "-0.04em"
-  heading:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    fontSize: "1.5rem"
-    fontWeight: 750
-    lineHeight: 1.25
-    letterSpacing: "-0.03em"
-  body:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    fontFamily: "Newsreader Variable, Newsreader, Georgia, serif"
+    fontSize: "2.75rem"
+    fontWeight: 400
+    lineHeight: 1.05
+    letterSpacing: "-0.02em"
+  interface:
+    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1rem"
     fontWeight: 400
-    lineHeight: 1.55
-    letterSpacing: "normal"
-  small:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    lineHeight: 1.5
+    letterSpacing: "0"
+  heading:
+    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "1.5rem"
+    fontWeight: 500
+    lineHeight: 1.2
+    letterSpacing: "0"
+  body:
+    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.8125rem"
     fontWeight: 400
     lineHeight: 1.5
-    letterSpacing: "normal"
-  label:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    fontSize: "0.75rem"
-    fontWeight: 850
-    lineHeight: 1.3
-    letterSpacing: "0.09em"
+    letterSpacing: "0"
+  meta:
+    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 500
+    lineHeight: 1.4
+    letterSpacing: "0"
 rounded:
-  xs: "5px"
-  sm: "9px"
-  md: "14px"
-  lg: "18px"
-  pill: "999px"
+  xs: "4px"
+  sm: "8px"
+  md: "12px"
+  lg: "16px"
 spacing:
   xs: "4px"
   sm: "8px"
-  md: "14px"
-  lg: "20px"
-  xl: "32px"
+  md: "12px"
+  lg: "16px"
+  xl: "24px"
+  xxl: "32px"
 components:
   button-primary:
-    backgroundColor: "{colors.lime}"
-    textColor: "{colors.lime-ink}"
+    backgroundColor: "{colors.ivory}"
+    textColor: "{colors.card-ink}"
     rounded: "{rounded.sm}"
-    padding: "12px 16px"
-    height: "44px"
+    padding: "0 16px"
+    height: "40px"
   button-secondary:
-    backgroundColor: "{colors.felt-raised}"
-    textColor: "{colors.text}"
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-soft}"
     rounded: "{rounded.sm}"
-    padding: "12px 16px"
-    height: "44px"
-  match-strip:
+    padding: "0 16px"
+    height: "40px"
+  table:
     backgroundColor: "{colors.felt}"
+    textColor: "{colors.ivory}"
+    rounded: "{rounded.md}"
+  panel:
+    backgroundColor: "{colors.surface}"
     textColor: "{colors.text}"
-    padding: "0 24px"
-    height: "64px"
-  decision-dock:
-    backgroundColor: "{colors.felt}"
-    textColor: "{colors.text}"
-    rounded: "{rounded.lg}"
+    rounded: "{rounded.md}"
     padding: "16px"
-  seat-chip:
-    backgroundColor: "#0e2317"
-    textColor: "{colors.text}"
-    rounded: "{rounded.sm}"
-    padding: "9px 11px"
   playing-card:
-    backgroundColor: "#fffefa"
-    textColor: "#17211b"
-    rounded: "{rounded.xs}"
-    width: "64px"
-    height: "90px"
-  coach-tag:
-    backgroundColor: "rgba(184, 243, 107, 0.07)"
-    textColor: "{colors.lime}"
-    rounded: "{rounded.xs}"
-    padding: "4px 8px"
+    backgroundColor: "{colors.card}"
+    textColor: "{colors.card-ink}"
+    rounded: "7px"
+    width: "68px"
+    height: "96px"
 ---
 
 ## Overview
 
-**Creative North Star: "The club table, not the dashboard."**
+**Creative North Star: "The quiet card room."**
 
-The player came to play a hand, not to read a control panel. The table is the stage; the match strip is integrated into the top bar; the hand is a dock below it; the coach is evidence attached to the decision. Everything else is reference, kept quiet in one rail or folded below on a phone.
+The player came to a table, not a control panel. The chrome sits in graphite ink; the green baize is the one rich surface; the cards are ivory; the fittings are brass. The coach is a calm read beside the table, not a dashboard of advice tiles. Nothing glows, nothing competes with the hand.
 
-**Key Characteristics:**
+**Key characteristics**
 
-- One filled lime element at a time: the action that is actually available.
-- A deep green felt field with warm ivory cards and ink-coloured seat chips.
-- A compact match strip in the top bar replaces sidebar score, contract, and progress cards.
-- A single decision dock that owns the hand, the bid controls, and the phone coach.
-- Plain-spoken coaching that names the visible cards behind every claim.
+- One rich moment: the felt table, its double brass inlay, and the ivory cards.
+- Quiet chrome: graphite surfaces, hairline rules, three text roles.
+- One accent: brass for contract, trump, and the one live fitting. The primary action is ivory, not coloured.
+- A printed-scorecard voice: Newsreader for the few display headlines, IBM Plex Sans for everything operational.
+- Plain-spoken coaching that names the visible evidence behind every claim.
 
-## Colors
+## Colours
 
-The palette is restrained: one green world, one lime signal, and two status hues.
+The palette is deliberately narrow.
 
-- **Deep Felt (#0b1310)** is the page field. It is almost black-green so the table can glow above it.
-- **Felt (#14231b)** is the raised table, dock, and top-bar surface. **Felt Raised (#1b3323)** is hover and inset depth.
-- **Lime (#bff576)** belongs to the primary action, the current-turn chip, and the coach's action line. It never decorates inactive states. On lime, use **Lime Ink (#15220f)**.
-- **Text (#eef5ee)** is body and data. **Text Soft (#a9bbad)** is supporting copy and labels; both clear 4.5:1 on the felt.
-- **Gold (#eece90)** marks warnings and opportunities. **Signal Red (#ff9691)** is reserved for errors and missed contracts.
-- Card suits keep their own ink: deep red and near-black on ivory. Never use the card-face `.red`/`.black` pair on a dark surface; use the light suit ink instead.
+- **Page (#0d0f0d)** is the room. **Surface (#141714)** is a panel. **Surface Raised (#1a1e1a)** is an inset or hover. Borders are the text colour at 8–10%.
+- **Felt (#1c4f38)** belongs to the table only. It may carry a same-hue vignette and a fine grain; it never tints the surrounding chrome.
+- **Brass (#c7a86a)** marks the contract, the trump fitting, a selected chip, and the coach's action label. It is a fitting, not a button fill. **Brass Soft (#dfc99b)** is the lighter ink on dark.
+- **Ivory (#efe9da)** is the card stock and the primary button fill. Text on ivory is **Card Ink (#1c211b)**.
+- **Text (#e9ece3)**, **Text Soft (#b8bfb4)** and **Text Muted (#8c9489)** are the only text roles. **Quiet (#7d877c)** is for captions and counts.
+- **Positive (#8fbf9a)** and **Negative (#d67c74)** carry meaning only. They are never used as decoration.
+- Suit ink is consistent: hearts and diamonds are red; spades and clubs are near-black on ivory and light on dark. Use the light suit ink outside card faces. The score-card pip follows the same rule.
 
-**The One Signal Rule.** If more than one element on screen is filled lime, one of them is not an action.
+**The Brass Rule.** If brass is on more than a few fittings, it has become a theme colour. Put it back on the contract, the trump plaque, and the coach's action.
 
 ## Typography
 
-One humanist system sans carries the whole product. It is a tool, not a brand poster.
+Two families, both carrying real work.
 
-- **Display (2rem, 700, -0.04em)** is the decision headline only. Phone display drops to 1.55rem.
-- **Heading (1.5rem, 750)** is the review headline and panel titles.
-- **Body (1rem, 1.55)** is all coaching and review copy. Never ship body copy below 14px; supporting UI labels sit at 12–13px.
-- **Label (0.75rem, 850, 0.09em, uppercase)** is reserved for data labels in the match strip, table facts, and rail section heads. It is not a decorative kicker above a heading.
-- Use **tabular numerals** for scores, points, bid values, percentages, and trick counts.
-- Measures stay under 70ch for coaching prose; the rail is naturally narrow.
-
-**The Label Rule.** A label names a datum or a section. If it only announces the heading beneath it, delete it.
+- **Newsreader** is the display face: the brand wordmark, the post-hand verdict, and modal titles. It is never used for labels or controls.
+- **IBM Plex Sans** is the interface face. Its slightly technical tone suits a game of counts and contracts.
+- Weights are 400 and 500; 600 is reserved for card indices and small tokens. No 700–900.
+- Sizes: 44px verdict, 30px modal title, 22px wordmark, 19px table title, 15–16px panel title, 13px body, 11–12px meta, 10–11px table fittings and card indices.
+- No uppercase labels with wide tracking. No negative tracking below 24px. No italic for emphasis.
+- Tabular numerals for scores, points, bids, percentages, and trick counts.
 
 ## Layout
 
-Desktop is a two-zone app: a main table column and one 320px context rail. The old three-column dashboard is gone.
+Desktop is a two-zone app: a fluid table column and a 296px context rail, inside a 1440px frame.
 
-- **Match strip** is integrated into the top bar: team score plaques, hand, a miniature contract card, dealer token, and one turn-state chip. It is the only place match state lives.
-- **Table column** is a 390-460px felt during play, a 400px felt during the auction and trump choice on phones, and a 420px felt on phones. The felt carries corner facts, an auction board, ghost trick slots, and a bottom rail of table objects: a physical match-score card stack, the contract meter, and a face-down trump card that flips when the suit is revealed.
-- **Decision dock** follows the table: header (with Hint and Compare on the player's turn), hand, action bar. The coach is in the right rail on wide screens and flattens into the dock below the action on phones. A completed trick pauses above the dock with Continue and an optional pair declaration.
-- **Right rail** carries coach, card reading, table events, session stats, and ranking as evenly padded cards. It is reference, never a second action surface.
-- Breakpoints: 1180px collapses the rail below the table; 940px wraps the match strip under the brand; 820px stacks the dock; 680px compacts the side seats; 470px compacts the top bar and table seats.
-- Touch targets are 44px minimum. The hand scrolls horizontally rather than shrinking below a readable card size.
+- **Match ribbon** is one horizontal bar in the top bar: score, hand, miniature contract card, dealer, turn state. Cells are divided by hairlines, not six separate cards.
+- **Table column.** A charcoal frame holds the felt. During the auction and trump choice the felt is 430px tall; during play it is 470–560px. Corner facts, auction board, seat place cards, compass-point played cards, and a bottom row of table objects: card-stack scoreboard, contract meter, trump plaque.
+- **Decision dock** follows the table: header, hand, action bar. Hint and Compare sit in the header on the player's turn. A completed trick or auction pauses above the dock with Continue.
+- **Right rail.** Coach first; then **Table notes** (visible-card reading plus the last few events); then **Club record** (session stats and ranking). During review the coach gives way to the score slip; the notes and record remain reference.
+- **Review.** A dark ledger surface, not a white sheet. Serif verdict, four-stat line, coach review and trick timeline, then the full-width deep review.
+- Breakpoints: 1180px collapses the rail below the table; 1100px hides the dealer tile; 900px wraps the match ribbon under the brand and hides the table centre once cards are down; 760px stacks the review; 620px compacts the table and turns the match ribbon into a 2×2 grid; 420px tightens seats, cards, and stats.
+- Touch targets are 44px on phones. The hand wraps rather than shrinking below a readable card size.
 
-**The Match-Strip Rule.** Match state lives in one horizontal strip. It never returns to a sidebar card.
+**The One-Table Rule.** The felt is the only large saturated surface. Panels, modals, and the review stay in the graphite ramp.
 
-## Elevation & Depth
+## Depth and motion
 
-Depth is etched, not floating. Panels use a one-pixel line, a slightly lighter felt fill, and a soft offset shadow only when they sit above the page (modal, dock). There is no decorative glass; seat chips are solid ink.
+Depth comes from surface steps and hairlines. Cards and modals may carry a soft neutral shadow; nothing gets a coloured glow.
 
-- Ambient: `0 18px 40px rgba(0, 0, 0, .18)` for the active dock.
-- Modal: `0 22px 80px rgba(0, 0, 0, .45)`.
-- Cards: a small offset shadow plus a hairline edge; cards lift 6–8px on hover, never scale.
-
-**The Etched Rule.** A surface earns depth from its edge and fill, not from a blur.
-
-## Shapes
-
-Corners are soft but not pill-shaped except for status chips. Playing cards keep a tighter 8px radius so they read as cards, not buttons. Panels use 14–18px. The brand mark and suit glyphs carry the only sharp geometry.
+- Card hover lifts 4px; press settles 1px and scales 0.99.
+- One easing curve: `cubic-bezier(0.22, 1, 0.36, 1)`.
+- 120–180ms for hover and press; 300–500ms for entrances.
+- Motion explains state: a trump flip, a trick announcement, a thinking pulse. No looping decoration.
+- Respect `prefers-reduced-motion`.
 
 ## Components
 
-- **Buttons.** Primary is filled lime with lime ink, 44px tall, 9–10px radius. Secondary is felt-raised with a hairline. Quiet is a lime-tinted outline. Disabled drops to 50% and never changes size.
-- **Match strip.** Team score plaques, a hand tile, a miniature contract card, a dealer token, and a tinted turn-state chip; the available action owns the lime fill.
-- **Table.** Felt with a grain layer, elliptical orbits, four solid seat chips (avatar, name, card fan, dealer/bidder tokens), played cards at the compass points, and a centred status block. The bottom rail is a three-row grid: label, physical object, caption. A card stack shows the match score on the left; the contract progress track sits in the middle; a face-down trump card (or a 2-card reverse indicator) sits on the right and flips on reveal. Empty chair space is part of the composition.
-- **Decision dock.** Header with Hint/Compare on the player's turn, hand, action bar. On phones the coach is a flattened section below the action, separated by a rule, not a nested card.
-- **Coach feed.** One advice card at a time, with previous/next arrows, a position counter, a Latest jump, and a LIVE marker. The history resets each hand.
-- **Pause bar.** After every trick the four cards stay on the felt; a bar beneath names the winner, the points, and the Continue action. It can also offer the royal-pair declaration. The same bar pauses a completed auction before trump is chosen.
-- **Stake panel.** Appears after trump is set when double/redouble is enabled. It explains the match-point swing and offers the side's one decision.
-- **Settings.** Rule switches apply to the next hand; the coach switch applies immediately. The modal shows the current hand's rules beside the next hand's rules.
-- **Coach.** A phase tag, a rule/hybrid/read confidence tag, a table-goal strip, an action-first title and summary, a one-sentence plan, the filled action line, short evidence bullets, and an optional sampled-model note. Every bullet names a card, count, or point total. When the sampled comparison is ready, the confidence tag reads hybrid and the action may follow the model; close disagreements keep the visible rule as the tie-break. On another seat's turn, the card becomes a non-actionable table read with a **Last Play** strip above it. Suit symbols are consistently red for hearts/diamonds and light for spades/clubs outside the ivory card faces.
-- **Review.** Verdict and next action at the top, stat grid, coach notes, bid review, data-driven hand insights, trick timeline, then the full-width deep review.
-- **Modal.** Used only for the guide and settings; Escape closes, the close button takes focus.
+- **Buttons.** Primary is ivory with card ink, 40px tall (44px on phones), 8px radius. Secondary is raised surface with a hairline. Quiet is transparent. No neon fills.
+- **Match ribbon.** Score, hand, contract mini-card, dealer token, turn state; divided by hairlines in one rounded bar.
+- **Table.** Green baize with a fine grain and a double brass inset line. Four dark place cards for the other seats; the human's hand is the dock. Played cards sit at the compass points. Empty slots are dashed hairlines, not buttons.
+- **Table objects.** A physical card stack for the match score; a 3px brass contract meter; a face-down trump card that flips when revealed, with a 2-card reverse indicator.
+- **Coach feed.** One read at a time with previous/next, position counter, Latest, and Live. A read has a phase tag and source, a goal line, a title, a summary, an optional action, a plan line, at most two evidence bullets, and a quiet model note. The history is grouped by turn; rule and hybrid updates replace each other instead of stacking.
+- **Off-turn reads.** While an opponent or partner acts, the coach stops giving card advice and reads the public table: contract count, known voids, likely plan. The last-play explanation joins the history; there is no separate live box.
+- **Pause bar.** Names the winner and points, offers Continue and the optional pair declaration. The same bar pauses a completed auction.
+- **Stake panel.** A quiet panel that explains the match-point swing and offers one decision.
+- **Review.** Dark ledger with a serif verdict; stats, coach review, trick timeline, deep review. Ivory cards are the only bright objects.
+- **Settings and guide.** Dark modal, serif title, sentence-case group labels, hairline rows, brass toggles. No uppercase eyebrows.
 
-## Do's and Don'ts
+## Do and don't
 
-- **Do** keep exactly one lime-filled action in view.
-- **Do** put the hand and the bid/play controls before the coach on phones.
+- **Do** keep the felt as the only saturated surface.
+- **Do** use brass for contract, trump, selection, and the coach's action label; do not fill buttons with it.
+- **Do** put the hand and bid/play controls before the coach on phones.
 - **Do** pause on a completed trick until the player continues.
 - **Do** name the visible card, count, or point total behind a coaching claim.
-- **Do** keep touch targets at 44px and body copy at 16px.
+- **Do** keep suit ink consistent: red hearts/diamonds, light black suits on dark.
+- **Do** keep touch targets at 44px and preserve a readable card size.
 - **Do** use tabular numerals for every score and percentage.
+- **Don't** use lime, neon, glows, gradient text, or colour-tinted chrome.
+- **Don't** use 800+ weights, uppercase tracked labels, or tiny 8px text.
 - **Don't** return to a three-column dashboard of equal panels.
-- **Don't** auto-advance past a completed trick before the player has read it.
-- **Don't** nest a card inside the decision dock; use a rule and spacing.
-- **Don't** use decorative eyebrows above headings; labels name data.
-- **Don't** use glass, gradient text, or suit colours from the card faces on dark surfaces.
+- **Don't** turn the review into a white sheet inside the dark room.
+- **Don't** add a separate live Last Play box; use the coach history.
 - **Don't** animate width, height, or layout properties; use transform and opacity.

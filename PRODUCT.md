@@ -32,7 +32,7 @@ Browser only: no account, backend, or API key. One session covers the deal, auct
 - Every completed trick pauses on the table until the player continues, so the four cards can be read before the next lead.
 - The table carries physical objects: a card-stack match scoreboard, a face-down trump card that flips when revealed, and seat chips with card fans instead of status sentences.
 - Coach advice is kept as a per-hand history that can be stepped through with previous/next controls. The live tip is a hybrid of the visible-card rule and the sampled model.
-- On another seat's turn, the coach switches to a non-actionable table read: what that seat may be trying to do, what the current trick and known voids imply, and a **Last Play** explanation after their card lands.
+- On another seat's turn, the coach switches to a non-actionable table read: what that seat may be trying to do, what the current trick and known voids imply. The explanation of their card then joins the coach history so it can be stepped back through.
 - Suit symbols use consistent ink: hearts and diamonds are red in coach text, event logs, review copy, and card labels; black suits use light ink on dark surfaces.
 - Compare uses 200 sampled deals per card by default; deep review uses 200 per decision. Both are adjustable from 48 to 400 in Practice settings.
 - Single-hand declarations and the Bangladesh auction sequence are not implemented.
@@ -43,7 +43,7 @@ Browser only: no account, backend, or API key. One session covers the deal, auct
 
 ## Brand Commitments
 
-The dark green club-table ground and lime accent are the established identity and must be evolved, not replaced (confirmed by the user). Keep the "Twenty-Nine Trainer" name and the plain-spoken coaching voice.
+The identity is a quiet private card room: graphite-ink chrome, a green baize table, ivory cards, and brass fittings. The felt is the one saturated surface; brass is a fitting, not a button colour. Keep the "Twenty-Nine Trainer" name and the plain-spoken coaching voice.
 
 ## Evidence on Hand
 
