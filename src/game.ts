@@ -438,7 +438,7 @@ export function continueAfterAuction(state: GameState): GameState {
     auctionComplete: false,
     currentPlayer: bidder,
     message: bidder === 0
-      ? 'You won the auction. Choose your trump or call the seventh card.'
+      ? 'You won the auction.'
       : `${PLAYER_NAMES[bidder]} is choosing trump.`,
   })
 }
