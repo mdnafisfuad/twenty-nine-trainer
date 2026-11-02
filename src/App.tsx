@@ -270,7 +270,7 @@ function TrumpStash({ suit, reverse, indicatorSuit, revealed, knownToYou, reveal
       ? 'Not set'
       : revealed
         ? SUIT_LABEL[suit]
-        : knownToYou ? `You know: ${SUIT_LABEL[suit]}` : 'Hidden'
+        : knownToYou ? `You: ${SUIT_LABEL[suit]}` : 'Hidden'
   const content = <>
     <span className="table-object-label">{showReverse ? 'Reverse' : 'Trump'}</span>
     <div className={`trump-stash-card ${revealed && shownSuit ? 'stash-flipped' : ''}`}>

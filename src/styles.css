@@ -1351,30 +1351,29 @@ select:disabled { opacity: 0.45; }
   .center-title { font-size: 17px; }
   .center-subtitle { font-size: 10.5px; }
   .table-message { max-width: 240px; font-size: 10px; }
+  .felt-table.is-bidding .table-center { transform: translate(-50%, calc(-50% - 6px)); }
   .felt-bottom {
-    left: 10px; right: 10px; bottom: 10px; row-gap: 8px; column-gap: 10px;
-    grid-template-columns: auto auto;
-    grid-template-areas: "bar bar" "score trump";
-    justify-content: space-between;
+    left: 10px; right: 10px; bottom: 10px; column-gap: 10px;
+    grid-template-columns: 68px minmax(0, 1fr) 68px;
+    grid-template-areas: "score bar trump";
+    align-items: end;
   }
-  .table-scoreboard { grid-area: score; width: 74px; }
-  .contract-progress { grid-area: bar; max-width: none; }
-  .trump-stash { grid-area: trump; width: 74px; }
-  .played-south { top: 58%; }
+  .table-scoreboard { grid-area: score; width: 68px; }
+  .contract-progress { grid-area: bar; max-width: none; margin-bottom: 16px; }
+  .trump-stash { grid-area: trump; width: 68px; }
+  .played-south { top: 62%; }
   .played-north { top: 22%; }
   .played-west { left: 38%; top: 40%; }
   .played-east { left: 62%; top: 40%; }
   .contract-progress-foot { display: none; }
-  .contract-progress-need { display: inline; margin-left: 6px; color: rgba(239, 233, 218, 0.62); font-style: normal; font-size: 8.5px; }
-  .felt-table.is-bidding .felt-bottom {
-    grid-template-columns: 74px minmax(0, 1fr) 74px;
-    grid-template-areas: "score bar trump";
-  }
-  .felt-table.is-bidding .contract-progress { display: none; }
-  .contract-progress-head { font-size: 9px; }
+  .contract-progress-need { display: inline; margin-left: 4px; color: rgba(239, 233, 218, 0.62); font-style: normal; font-size: 8px; }
+  .contract-progress-head { font-size: 9px; gap: 4px; }
+  .contract-progress-teams { gap: 3px; }
+  .score-stacks { gap: 6px; }
   .score-card-stack { width: 26px; height: 36px; }
-  .score-team-labels { grid-template-columns: 26px 6px 26px; gap: 6px; }
+  .score-team-labels { grid-template-columns: 26px 4px 26px; gap: 5px; }
   .trump-stash-card { width: 30px; height: 41px; }
+  .trump-stash-caption { max-width: 100%; width: 100%; }
   .auction-seat { padding: 6px 5px; }
   .auction-seat span { font-size: 8.5px; }
   .auction-seat strong { font-size: 12px; }
@@ -1444,19 +1443,20 @@ select:disabled { opacity: 0.45; }
   .center-logo { font-size: 20px; }
   .center-title { font-size: 16px; }
   .center-subtitle { font-size: 10px; }
-  .felt-bottom { grid-template-columns: auto auto; column-gap: 8px; bottom: 9px; left: 9px; right: 9px; }
-  .table-scoreboard, .trump-stash { width: 64px; }
-  .felt-table.is-bidding .felt-bottom { grid-template-columns: 64px minmax(0, 1fr) 64px; }
+  .felt-bottom { grid-template-columns: 60px minmax(0, 1fr) 60px; column-gap: 8px; bottom: 9px; left: 9px; right: 9px; }
+  .table-scoreboard, .trump-stash { width: 60px; }
+  .score-stacks { gap: 4px; }
   .score-card-stack { width: 24px; height: 34px; }
-  .score-team-labels { grid-template-columns: 24px 5px 24px; gap: 5px; }
+  .score-team-labels { grid-template-columns: 24px 4px 24px; gap: 4px; }
   .score-team-labels span { font-size: 8.5px; }
   .score-card strong { font-size: 13px; }
   .trump-stash { align-items: flex-end; }
   .trump-stash-card { width: 27px; height: 37px; }
   .trump-stash-caption { font-size: 8.5px; }
-  .contract-progress-head { font-size: 8.5px; gap: 5px; }
-  .contract-progress-foot { font-size: 8.5px; }
-  .contract-progress-foot span:last-child { display: none; }
+  .contract-progress { margin-bottom: 16px; }
+  .contract-progress-head { font-size: 9px; gap: 3px; }
+  .contract-progress-teams { gap: 2px; }
+  .contract-progress-need { display: none; }
   .dock-title h2 { font-size: 13px; }
   .coach-insight-title { font-size: 14px; }
   .review-screen { padding: 14px; }
