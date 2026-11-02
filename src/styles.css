@@ -113,20 +113,19 @@ button:focus-visible, select:focus-visible, a:focus-visible, [role="switch"]:foc
   background: rgba(255, 255, 255, 0.025);
   overflow: hidden;
 }
-.score-cluster { display: flex; align-items: center; gap: 2px; padding: 4px 8px; }
-.team-score { display: flex; align-items: center; gap: 6px; padding: 1px 4px; }
+.score-cluster { display: flex; align-items: center; gap: 4px; padding: 4px 8px; }
+.team-score { display: flex; align-items: center; gap: 7px; padding: 1px 4px; }
 .team-token {
-  width: 22px; height: 22px; flex-shrink: 0;
+  width: 24px; height: 24px; flex-shrink: 0;
   display: grid; place-items: center;
   border: 1px solid var(--line); border-radius: 6px;
-  background: var(--surface-2); color: var(--soft);
-  font-size: 10px; font-weight: 600; line-height: 1;
+  background: var(--surface-2); color: var(--text);
+  font-size: 11.5px; font-weight: 600; line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
-.team-copy { display: flex; flex-direction: column; gap: 1px; line-height: 1.05; }
-.team-copy span { font-size: 10px; color: var(--muted); }
-.team-copy strong { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.team-score.is-ahead .team-copy strong { color: var(--green); }
-.team-score.is-behind .team-copy strong { color: var(--red); }
+.team-name { font-size: 14px; font-weight: 500; line-height: 1; color: var(--text); white-space: nowrap; }
+.team-score.is-ahead .team-token { color: var(--green); border-color: rgba(143, 191, 154, 0.28); }
+.team-score.is-behind .team-token { color: var(--red); border-color: rgba(214, 124, 116, 0.28); }
 .score-sep { width: 1px; margin: 7px 3px; background: var(--line); flex-shrink: 0; }
 
 .match-tile {
@@ -1369,7 +1368,7 @@ select:disabled { opacity: 0.45; }
 @media (max-width: 620px) {
   .topbar { padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left)); }
   .match-strip { display: grid; grid-template-columns: 1.05fr 1fr; }
-  .score-cluster { border-right: 1px solid var(--line); justify-content: space-evenly; gap: 0; }
+  .score-cluster { border-right: 1px solid var(--line); justify-content: flex-start; gap: 8px; padding: 4px 10px; }
   .score-sep { margin: 7px 0; }
   .match-tile { border-left: 0; }
   .match-contract { border-top: 1px solid var(--line); border-right: 1px solid var(--line); }
@@ -1406,16 +1405,15 @@ select:disabled { opacity: 0.45; }
     left: 24px; right: 24px; bottom: 14px; column-gap: 10px;
     grid-template-columns: 68px minmax(0, 1fr) 68px;
     grid-template-areas: "score bar trump";
-    align-items: center;
+    align-items: end;
   }
   .table-scoreboard { grid-area: score; width: 68px; }
-  .contract-progress { grid-area: bar; max-width: none; margin-bottom: 0; }
+  .contract-progress { grid-area: bar; max-width: none; margin-bottom: 11px; }
   .trump-stash { grid-area: trump; width: 68px; }
-  .score-stacks { flex-direction: column; align-items: flex-start; gap: 3px; }
-  .score-vs { display: none; }
-  .score-pair { align-items: center; gap: 5px; }
-  .score-inline-label { display: inline; color: rgba(239, 233, 218, 0.76); font-size: 8.5px; line-height: 1; }
-  .score-team-labels { display: none; }
+  .score-stacks { flex-direction: row; align-items: flex-end; gap: 4px; }
+  .score-pair { align-items: flex-end; }
+  .score-inline-label { display: none; }
+  .score-team-labels { display: grid; grid-template-columns: 24px 4px 24px; gap: 4px; }
   .score-card-stack { width: 24px; height: 30px; }
   .played-south { top: 63%; }
   .played-north { top: 26%; }
@@ -1481,9 +1479,9 @@ select:disabled { opacity: 0.45; }
   .brand-mark { width: 30px; height: 35px; }
   .match-tile { padding: 5px 8px; gap: 5px; }
   .tile-copy small { display: none; }
-  .team-score { gap: 4px; }
-  .team-token { width: 20px; height: 20px; }
-  .team-copy strong { font-size: 13px; }
+  .team-score { gap: 5px; padding: 1px 2px; }
+  .team-token { width: 22px; height: 22px; font-size: 10.5px; }
+  .team-name { font-size: 13px; }
   .felt-table { height: 360px; }
   .felt-table.is-bidding { height: 350px; }
   .bid-ladder { display: none; }
@@ -1500,12 +1498,13 @@ select:disabled { opacity: 0.45; }
   .table-scoreboard, .trump-stash { width: 56px; }
   .score-stacks { gap: 3px; }
   .score-card-stack { width: 22px; height: 28px; }
-  .score-inline-label { font-size: 8px; }
+  .score-team-labels { grid-template-columns: 22px 3px 22px; gap: 3px; }
+  .score-inline-label { display: none; }
   .score-card strong { font-size: 13px; }
   .trump-stash { align-items: flex-end; }
   .trump-stash-card { width: 27px; height: 37px; }
   .trump-stash-caption { font-size: 8.5px; }
-  .contract-progress { margin-bottom: 0; }
+  .contract-progress { margin-bottom: 10px; }
   .contract-progress-head { font-size: 9px; gap: 3px; }
   .contract-progress-teams { gap: 2px; }
   .contract-progress-need { display: none; }

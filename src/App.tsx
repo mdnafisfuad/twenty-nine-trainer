@@ -1102,14 +1102,14 @@ export default function App() {
       <div className="brand-lockup"><BrandMark /><div className="brand-text"><div>Twenty-Nine <span>Trainer</span></div><small>Contract twenty-nine · practice table</small></div></div>
       <div className="match-strip" role="group" aria-label="Match status">
         <div className="score-cluster">
-          <div className={`team-score ${game.matchScore[0] > 0 ? 'is-ahead' : game.matchScore[0] < 0 ? 'is-behind' : ''}`}>
-            <span className="team-token" aria-hidden="true">Y</span>
-            <span className="team-copy"><span>You</span><strong>{game.matchScore[0] > 0 ? '+' : ''}{game.matchScore[0]}</strong></span>
+          <div className={`team-score ${game.matchScore[0] > 0 ? 'is-ahead' : game.matchScore[0] < 0 ? 'is-behind' : ''}`} aria-label={`You ${game.matchScore[0]}`}>
+            <span className="team-token" aria-hidden="true">{signedScore(game.matchScore[0])}</span>
+            <span className="team-name" aria-hidden="true">You</span>
           </div>
           <span className="score-sep" aria-hidden="true" />
-          <div className={`team-score ${game.matchScore[1] > 0 ? 'is-ahead' : game.matchScore[1] < 0 ? 'is-behind' : ''}`}>
-            <span className="team-token" aria-hidden="true">T</span>
-            <span className="team-copy"><span>Them</span><strong>{game.matchScore[1] > 0 ? '+' : ''}{game.matchScore[1]}</strong></span>
+          <div className={`team-score ${game.matchScore[1] > 0 ? 'is-ahead' : game.matchScore[1] < 0 ? 'is-behind' : ''}`} aria-label={`Them ${game.matchScore[1]}`}>
+            <span className="team-token" aria-hidden="true">{signedScore(game.matchScore[1])}</span>
+            <span className="team-name" aria-hidden="true">Them</span>
           </div>
         </div>
         <div className="match-tile match-hand">
