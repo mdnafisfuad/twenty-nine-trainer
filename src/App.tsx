@@ -353,7 +353,7 @@ function CoachInsightCard({ insight, modelNote, objective }: { insight: CoachIns
   </div>
 }
 
-function Modal({ title, eyebrow, onClose, children }: { title: string; eyebrow?: string; onClose: () => void; children: ReactNode }) {
+function Modal({ title, eyebrow, onClose, children, centered = false }: { title: string; eyebrow?: string; onClose: () => void; children: ReactNode; centered?: boolean }) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const closeHandler = useRef(onClose)
   closeHandler.current = onClose
@@ -363,7 +363,7 @@ function Modal({ title, eyebrow, onClose, children }: { title: string; eyebrow?:
     closeRef.current?.focus()
     return () => document.removeEventListener('keydown', onKey)
   }, [])
-  return <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
+  return <div className={`modal-backdrop ${centered ? 'is-centered' : ''}`} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
     <section className="modal-card" role="dialog" aria-modal="true" aria-label={title}>
       <div className="modal-head"><div><p className="eyebrow">{eyebrow || 'Twenty-Nine Trainer'}</p><h2>{title}</h2></div><button ref={closeRef} className="icon-button" onClick={onClose} aria-label="Close dialog"><X size={20} /></button></div>
       {children}
@@ -1422,7 +1422,7 @@ export default function App() {
       <div className="modal-bottom"><button className="button-primary" onClick={() => setShowSettings(false)}>Done <Check size={15} /></button></div>
     </Modal>}
 
-    {resumePrompt && savedGame && resumeView && <Modal title="Continue your match?" eyebrow="Welcome back" onClose={continueSavedGame}>
+    {resumePrompt && savedGame && resumeView && <Modal title="Continue your match?" eyebrow="Welcome back" onClose={continueSavedGame} centered>
       <div className="resume-summary">
         <div className="resume-headline"><strong>{resumeView.hand}</strong><span>{resumeView.phase}</span></div>
         <div className="resume-facts">

@@ -1150,6 +1150,7 @@ select:disabled { opacity: 0.45; }
   backdrop-filter: blur(4px);
   animation: fade-in 180ms ease-out;
 }
+.modal-backdrop.is-centered { align-items: center; }
 .modal-card {
   display: flex; flex-direction: column;
   width: min(680px, 100%);
@@ -1381,9 +1382,9 @@ select:disabled { opacity: 0.45; }
   .felt-table { height: 380px; }
   .felt-table.is-bidding { height: 360px; }
   .felt-table.has-trick-cards .table-center { display: none; }
-  .table-fact { top: 14px; }
-  .fact-tl { left: 16px; }
-  .fact-tr { right: 16px; }
+  .table-fact { top: 18px; }
+  .fact-tl { left: 22px; }
+  .fact-tr { right: 22px; }
   .player-seat { min-width: 104px; gap: 6px; padding: 5px 7px; }
   .seat-avatar { width: 24px; height: 24px; }
   .seat-west { left: 10px; }
@@ -1402,21 +1403,24 @@ select:disabled { opacity: 0.45; }
   .table-message { max-width: 240px; font-size: 10px; }
   .felt-table.is-bidding .table-center { transform: translate(-50%, calc(-50% - 6px)); }
   .felt-bottom {
-    left: 24px; right: 24px; bottom: 14px; column-gap: 10px;
+    left: 24px; right: 24px; bottom: 20px; column-gap: 10px;
     grid-template-columns: 68px minmax(0, 1fr) 68px;
     grid-template-areas: "score bar trump";
     align-items: end;
   }
   .table-scoreboard { grid-area: score; width: 68px; }
-  .contract-progress { grid-area: bar; max-width: none; margin-bottom: 11px; }
+  .contract-progress { grid-area: bar; width: 100%; max-width: none; margin-bottom: 11px; transform: translate(17px, -5px); }
   .trump-stash { grid-area: trump; width: 68px; }
   .score-stacks { flex-direction: row; align-items: flex-end; gap: 4px; }
+  .score-vs { display: none; }
   .score-pair { align-items: flex-end; }
   .score-inline-label { display: none; }
-  .score-team-labels { display: grid; grid-template-columns: 24px 4px 24px; gap: 4px; }
-  .score-card-stack { width: 24px; height: 30px; }
-  .played-south { top: 63%; }
-  .played-north { top: 26%; }
+  .score-team-labels { display: flex; gap: 4px; }
+  .score-team-labels span:nth-child(2) { display: none; }
+  .score-team-labels span { width: 30px; text-align: center; }
+  .score-card-stack { width: 30px; height: 41px; }
+  .played-south { top: 66%; }
+  .played-north { top: 28%; }
   .played-west { left: 38%; top: 40%; }
   .played-east { left: 62%; top: 40%; }
   .contract-progress-foot { display: none; }
@@ -1494,17 +1498,18 @@ select:disabled { opacity: 0.45; }
   .center-logo { font-size: 20px; }
   .center-title { font-size: 16px; }
   .center-subtitle { font-size: 10px; }
-  .felt-bottom { grid-template-columns: 56px minmax(0, 1fr) 56px; column-gap: 8px; bottom: 12px; left: 24px; right: 24px; }
-  .table-scoreboard, .trump-stash { width: 56px; }
+  .felt-bottom { grid-template-columns: 58px minmax(0, 1fr) 56px; column-gap: 8px; bottom: 18px; left: 24px; right: 24px; }
+  .table-scoreboard { width: 58px; }
+  .trump-stash { width: 56px; }
   .score-stacks { gap: 3px; }
-  .score-card-stack { width: 22px; height: 28px; }
-  .score-team-labels { grid-template-columns: 22px 3px 22px; gap: 3px; }
-  .score-inline-label { display: none; }
+  .score-card-stack { width: 27px; height: 37px; }
+  .score-team-labels { gap: 3px; }
+  .score-team-labels span { width: 27px; font-size: 8.5px; }
   .score-card strong { font-size: 13px; }
   .trump-stash { align-items: flex-end; }
   .trump-stash-card { width: 27px; height: 37px; }
   .trump-stash-caption { font-size: 8.5px; }
-  .contract-progress { margin-bottom: 10px; }
+  .contract-progress { max-width: none; margin-bottom: 11px; transform: translate(14px, -5px); }
   .contract-progress-head { font-size: 9px; gap: 3px; }
   .contract-progress-teams { gap: 2px; }
   .contract-progress-need { display: none; }
