@@ -17,7 +17,7 @@ Casual Twenty-Nine players practising alone. Job: read the table, make the corre
 
 ## Action and content
 
-Primary action: the current legal decision (bid, choose trump, play a card). Supporting content: match score, contract, whose turn, points on the table, the coach's visible-card evidence, and the hand review. Session stats persist locally.
+Primary action: the current legal decision (bid, choose trump, play a card). Supporting content: match score, contract, whose turn, points on the table, the coach's visible-card evidence, and the hand review. Session stats, preferences, and the current game persist locally; a returning player can continue the saved match or start fresh, and the app installs as an offline-capable PWA.
 
 ## Constraints
 

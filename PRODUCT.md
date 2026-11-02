@@ -20,7 +20,7 @@ The coach reasons only from the player's own hand and public play - no hidden-ca
 
 ## Operating Context
 
-Browser only: no account, backend, or API key. One session covers the deal, auction, trump selection, eight tricks, score, and review; statistics persist in local storage. Sessions are short and solo, often on a phone in portrait, sometimes on a laptop with the coach open.
+Browser only: no account, backend, or API key. One session covers the deal, auction, trump selection, eight tricks, score, and review; the current hand, statistics, and preferences persist in local storage. Sessions are short and solo, often on a phone in portrait, sometimes on a laptop with the coach open. The app can be installed as a PWA and launched offline.
 
 ## Capabilities and Constraints
 
@@ -39,7 +39,7 @@ Browser only: no account, backend, or API key. One session covers the deal, auct
 - The live coach may use only visible information; the deep evaluator receives sanitized state and runs in a Web Worker.
 - Bots use partner-aware deterministic bidding and determinized Monte Carlo card search; once the mode is public and four or fewer tricks remain, each sampled deal is solved exactly with double-dummy minimax. Bot search is sanitized before sampling, so it cannot see the real hidden hands. Search can be switched off for faster heuristic bots, and its sample budget is configurable.
 - The coach, hints, card reading, and model panels can be turned off from the top bar or settings.
-- Static-deployable (Cloudflare Pages) with session stats and rule preferences stored locally.
+- Static-deployable (Cloudflare Pages) as an installable PWA, with the current hand, session stats, and rule preferences stored locally. An in-app resume prompt offers continue or a fresh match; restart is always available in settings.
 
 ## Brand Commitments
 

@@ -21,16 +21,19 @@ A local-first Twenty-Nine practice game built with React, TypeScript, Vite, and 
 - **Search-based bots:** partner-aware bidding, plus determinized Monte Carlo card play over plausible unseen deals. Once the contract mode is public, the last four tricks are solved exactly with double-dummy minimax. Bots still use only their own hand and public information; the search never receives the real hidden hands.
 - **Hybrid coach:** a visible-card rule tip starts every turn, then the sampled comparison turns it into a hybrid verdict. The card, plan, and confidence label update when the model has a clear edge; when the views are close, the rule remains the tie-break and the tip explains both. The live coach keeps the evidence behind each claim, plus a bid review after the hand.
 - **Off-turn table reads:** while an opponent or partner is thinking, the coach stops giving you card advice and instead reads the public table: the contract count, known voids, likely suit plan, and what to watch. After a card lands, that read joins the coach history, where the arrows let you revisit what the card was likely trying to do.
+- **Void ledger:** the Table notes strip lists every exposed void by seat and suit as compact chips, alongside the visible-card reading and recent play.
 - **Consistent suit ink:** hearts and diamonds are red everywhere, including coach text, event logs, card labels, and review copy; black suits use the light ink on dark surfaces.
 - **Coach off switch** in the top bar and settings for a clean table with no hints or model panels.
 - Rule-based post-hand feedback for clear tactical opportunities, point donations, wasted control, and uncollected points.
 - **Monte Carlo move evaluator:** compare every legal card against 200 sampled unseen deals by default, with exact double-dummy solving once four or fewer tricks remain. Sample size is adjustable in **Practice settings** from 48 to 400.
 - **Automatic full-hand deep review:** after each hand, re-evaluate each recorded decision across 200 sampled deals by default, show the model's alternative, and estimate how it changes the chance of achieving your team's objective. The review can be run again on demand, and its sample size is adjustable.
 - **Bot controls:** search-based bots can be switched off for faster heuristic play, and the bot search budget can be set to 24, 48, 96, or 200 deals per move.
+- **Autosave and resume:** the table is saved after every bid and card. Returning to the page offers **Continue match** or **Start new match**, and **Restart match** in settings starts a fresh 0–0 match.
+- **Installable PWA:** a web app manifest, maskable icons, and a Workbox service worker precache the full app. Install it from the top bar, Practice settings, or the browser menu, then launch it full-screen and offline.
 - Sampling respects seen cards, known void suits, and public remaining-card counts. The worker receives a sanitized snapshot without opponents' hands or a hidden trump suit.
 - A Web Worker keeps the coach's move-comparison and deep-review simulations off the main UI thread; the bots' own search runs locally in the page during their turn.
 - Interactive trick timeline, contextual hints, local session statistics, and responsive phone/tablet/desktop layouts.
-- Static output deployable to Cloudflare Pages.
+- Installable static output deployable to Cloudflare Pages.
 
 ## Strategy evaluator: what it does
 
@@ -88,7 +91,7 @@ pnpm build
 pnpm preview
 ```
 
-The build output is written to `dist/`. Commit the generated `pnpm-lock.yaml` after the first successful `pnpm install` so future installs are reproducible.
+The build output is written to `dist/`. Commit the generated `pnpm-lock.yaml` after the first successful `pnpm install` so future installs are reproducible. If the brand mark changes, regenerate the install icons with `pnpm generate-pwa-assets`; the source is `public/logo.svg`.
 
 ## Deploy to Cloudflare Pages
 
@@ -110,7 +113,7 @@ pnpm build
 npx wrangler pages deploy dist
 ```
 
-The `_redirects` and `_headers` files are copied into `dist/` by Vite. Session statistics and rule preferences are saved in local browser storage; the current hand and review stay in memory. No Cloudflare Worker, environment variables, database, or secret key is required.
+The `_redirects` and `_headers` files are copied into `dist/` by Vite. The game, session statistics, and rule preferences are saved in local browser storage, so a reload resumes the same hand. The build also emits `manifest.webmanifest`, `sw.js`, and the Workbox runtime; `_headers` keeps the service worker, registration script, and manifest revalidating so new deployments are picked up. No Cloudflare Worker, environment variables, database, or secret key is required.
 
 ## Simple architecture
 
@@ -118,10 +121,14 @@ The `_redirects` and `_headers` files are copied into `dist/` by Vite. Session s
 - `src/coach.ts` — visible-information insight engine: bid/trump/play recommendations, suit and unseen-card reading, and post-hand lessons.
 - `src/ai/evaluator.ts` — sanitized belief states, unseen-deal sampling, move rollouts, and full-hand evaluation.
 - `src/ai/evaluator.worker.ts` — background worker for expensive strategy calculations.
-- `src/App.tsx` — match strip, felt table, pause bar, decision dock, stake panel, coach rail, review screen, settings, and browser-local stats.
+- `src/App.tsx` — match strip, felt table, pause bar, decision dock, stake panel, coach rail, review screen, settings, resume prompt, install prompt, and browser-local stats.
+- `src/persistence.ts` — versioned local save, validation, restore, and clear helpers for the current game.
+- `src/useInstallPrompt.ts` — captures the browser install prompt and reports standalone/iOS state.
 - `src/styles.css` — club-table surface, decision-first layout, typography, and responsive rules.
 - `PRODUCT.md` / `DESIGN.md` — durable product truth and the visual system for future work.
-- `public/_redirects`, `public/_headers`, `wrangler.jsonc` — Cloudflare Pages SPA fallback, headers, and deploy configuration.
+- `vite.config.ts` / `pwa-assets.config.ts` — PWA manifest, Workbox precache, and local icon generation.
+- `public/logo.svg`, `public/pwa-*.png`, `public/apple-touch-icon-180x180.png`, `public/maskable-icon-512x512.png` — install icons and source mark.
+- `public/_redirects`, `public/_headers`, `wrangler.jsonc` — Cloudflare Pages SPA fallback, security/cache headers, and deploy configuration.
 
 The evaluator is deliberately separated from the UI. The worker only receives the player's own hand, public tricks, and publicly inferable information; actual opponent hands and hidden trump are stripped before analysis.
 

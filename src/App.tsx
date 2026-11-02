@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   Activity, ArrowDownRight, ArrowUpRight, BookOpen, Brain, Check,
-  ChevronLeft, ChevronRight, CircleHelp, Clock3, Crown, Eye, Flag, Hand, Lightbulb, RotateCcw,
+  ChevronLeft, ChevronRight, CircleHelp, Clock3, Crown, Download, Eye, Flag, Hand, Lightbulb, RotateCcw,
   Settings2, ShieldCheck, Sparkles, Swords, Target, X,
 } from 'lucide-react'
 import {
@@ -12,9 +12,11 @@ import {
   resolveStake, revealHiddenContract, SUITS, SUIT_LABEL, SUIT_SYMBOL, teamOf, type Card, type GameState, type RuleSet,
   type Suit,
 } from './game'
-import { coachInsight, handInsights, lastPlayInsight, observationInsight, tableReading, type CoachInsight } from './coach'
+import { coachInsight, handInsights, knownVoids, lastPlayInsight, observationInsight, tableReading, type CoachInsight } from './coach'
 import { sanitizeStateForEvaluation, type DeepReviewResult, type MoveEvaluation } from './ai/evaluator'
 import { chooseBotCardWithSearch } from './ai/search'
+import { clearSavedGame, loadSavedGame, saveGame, type SavedGame } from './persistence'
+import { useInstallPrompt } from './useInstallPrompt'
 import './styles.css'
 
 type SessionStats = {
@@ -212,9 +214,13 @@ function ScoreBoard({ score }: { score: [number, number] }) {
       </div>
     </div>
   }
+  const row = (team: 0 | 1) => <div className="score-pair">
+    {stack(team)}
+    <span className="score-inline-label">{team === 0 ? 'You' : 'Them'}</span>
+  </div>
   return <div className="table-scoreboard" aria-label={`Match score. You ${score[0]}, them ${score[1]}. First to plus six wins.`}>
     <span className="table-object-label">Match</span>
-    <div className="score-stacks">{stack(0)}<span className="score-vs" aria-hidden="true">–</span>{stack(1)}</div>
+    <div className="score-stacks">{row(0)}<span className="score-vs" aria-hidden="true">–</span>{row(1)}</div>
     <div className="score-team-labels" aria-hidden="true"><span>You</span><span /><span>Them</span></div>
   </div>
 }
@@ -420,8 +426,18 @@ function SelectRow({ title, description, value, options, suffix = 'deals', disab
   </div>
 }
 
-function ruleSummary(rules: RuleSet): string {
-  return `Pair ${rules.pair ? 'on' : 'off'} · Seventh ${rules.seventhCard ? 'on' : 'off'} · Reverse ${rules.reverse ? 'on' : 'off'} · Reverse trump ${rules.reverseTrump ? 'on' : 'off'} · Double ${rules.double ? 'on' : 'off'} · Last trick ${rules.lastTrickBonus ? 'on' : 'off'}`
+function RuleSummary({ rules }: { rules: RuleSet }) {
+  const items: Array<[string, boolean]> = [
+    ['Pair', rules.pair],
+    ['7th card', rules.seventhCard],
+    ['Reverse', rules.reverse],
+    ['Reverse trump', rules.reverseTrump],
+    ['Double', rules.double],
+    ['Last trick', rules.lastTrickBonus],
+  ]
+  return <div className="rule-chips">
+    {items.map(([label, on]) => <span key={label} className={`rule-chip ${on ? 'is-on' : 'is-off'}`}>{label}<i>{on ? 'on' : 'off'}</i></span>)}
+  </div>
 }
 
 function MoveAnalysisPanel({ analysis, objectiveLabel, onClose }: { analysis: MoveEvaluation; objectiveLabel: string; onClose: () => void }) {
@@ -562,15 +578,56 @@ type TableAnnouncement =
   | { kind: 'reverse'; suit: Suit | null; trump: Suit | null }
   | { kind: 'pair'; player: number; effect: 'reduce' | 'raise'; target: number }
 
+function signedScore(value: number): string {
+  return value > 0 ? `+${value}` : String(value)
+}
+
+function shouldPersistGame(game: GameState): boolean {
+  return game.version > 0 || game.handNumber > 1 || game.matchScore[0] !== 0 || game.matchScore[1] !== 0
+}
+
+function savedAgo(savedAt: number): string {
+  const seconds = Math.max(0, Math.round((Date.now() - savedAt) / 1000))
+  if (seconds < 60) return 'just now'
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours} hr ago`
+  return new Date(savedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function savedGameView(game: GameState) {
+  const phase = game.phase === 'review'
+    ? game.review?.matchWinner !== null && game.review?.matchWinner !== undefined ? 'Match complete' : 'Hand review ready'
+    : game.phase === 'auction'
+      ? game.auctionComplete ? 'Auction complete' : 'Auction'
+      : game.phase === 'trump'
+        ? 'Contract choice'
+        : game.phase === 'stake'
+          ? 'Stake decision'
+          : game.pausedTrick
+            ? `Trick ${game.pausedTrick.number} complete`
+            : `Trick ${Math.min(8, game.tricks.length + 1)} of 8`
+  return {
+    hand: `Hand ${String(game.handNumber).padStart(2, '0')}`,
+    phase,
+    score: `You ${signedScore(game.matchScore[0])} · Them ${signedScore(game.matchScore[1])}`,
+    contract: game.highBid === null ? 'No contract yet' : `Target ${contractTarget(game)}`,
+  }
+}
+
 export default function App() {
   const [preferences, setPreferences] = useState<Preferences>(getPreferences)
-  const [game, setGame] = useState<GameState>(() => newHand(3, 1, [0, 0], preferences, 1))
+  const [savedGame, setSavedGame] = useState<SavedGame | null>(loadSavedGame)
+  const [game, setGame] = useState<GameState>(() => savedGame?.game ?? newHand(3, 1, [0, 0], preferences, 1))
+  const [resumePrompt, setResumePrompt] = useState(savedGame !== null)
   const [stats, setStats] = useState<SessionStats>(getStats)
   const [showGuide, setShowGuide] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [confirmRestart, setConfirmRestart] = useState(false)
   const [selectedTrick, setSelectedTrick] = useState(0)
   const [bidChoice, setBidChoice] = useState(16)
-  const processedHand = useRef<number | null>(null)
+  const processedHand = useRef<number | null>(savedGame?.game.phase === 'review' ? savedGame.game.handId : null)
   const analyzedHand = useRef<number | null>(null)
   const autoAnalysisKey = useRef('')
   const evaluatorWorker = useRef<Worker | null>(null)
@@ -578,6 +635,8 @@ export default function App() {
   const pendingEvaluation = useRef<PendingEvaluation | null>(null)
   const currentGameVersion = useRef(game.version)
   currentGameVersion.current = game.version
+  const latestGame = useRef(game)
+  latestGame.current = game
   const [moveAnalysis, setMoveAnalysis] = useState<{ version: number; result: MoveEvaluation } | null>(null)
   const [showMovePanel, setShowMovePanel] = useState(false)
   const [deepReview, setDeepReview] = useState<DeepReviewResult | null>(null)
@@ -589,7 +648,8 @@ export default function App() {
   const lastPlayKey = useRef('')
   const [announcement, setAnnouncement] = useState<TableAnnouncement | null>(null)
   const previousReveal = useRef(game.trumpRevealed)
-  const previousPair = useRef<string | null>(null)
+  const previousPair = useRef<string | null>(game.pair ? `${game.pair.trickNumber}-${game.pair.player}-${game.pair.effect}` : null)
+  const installPrompt = useInstallPrompt()
 
   useEffect(() => {
     const worker = new Worker(new URL('./ai/evaluator.worker.ts', import.meta.url), { type: 'module' })
@@ -626,6 +686,30 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem(PREFS_KEY, JSON.stringify(preferences)) } catch { /* Preferences fall back to defaults. */ } }, [preferences])
 
   useEffect(() => {
+    if (resumePrompt || !shouldPersistGame(game)) return
+    const timer = window.setTimeout(() => saveGame(game), 180)
+    return () => window.clearTimeout(timer)
+  }, [game, resumePrompt])
+
+  useEffect(() => {
+    const flush = () => {
+      if (!resumePrompt && shouldPersistGame(latestGame.current)) saveGame(latestGame.current)
+    }
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flush() }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [resumePrompt])
+
+  useEffect(() => {
+    if (!showSettings) setConfirmRestart(false)
+  }, [showSettings])
+
+  useEffect(() => {
+    if (resumePrompt) return
     if (game.phase === 'review' && game.review && processedHand.current !== game.handId) {
       processedHand.current = game.handId
       setStats(previous => ({
@@ -636,9 +720,10 @@ export default function App() {
       }))
       setSelectedTrick(0)
     }
-  }, [game.phase, game.review, game.handId])
+  }, [game.phase, game.review, game.handId, resumePrompt])
 
   useEffect(() => {
+    if (resumePrompt) return
     let timer: number | undefined
     if (game.phase === 'auction' && !game.auctionComplete && game.currentPlayer !== 0) {
       const player = game.currentPlayer
@@ -673,14 +758,15 @@ export default function App() {
       }, 520 + Math.random() * 280)
     }
     return () => { if (timer !== undefined) window.clearTimeout(timer) }
-  }, [game])
+  }, [game, resumePrompt])
 
   useEffect(() => {
+    if (resumePrompt) return
     if (preferences.coach && game.phase === 'review' && game.review && game.decisions.length > 0 && analyzedHand.current !== game.handId) {
       analyzedHand.current = game.handId
       requestDeepReview()
     }
-  }, [game.phase, game.handId, game.review, preferences.coach])
+  }, [game.phase, game.handId, game.review, preferences.coach, resumePrompt])
 
 
   const sortedHand = useMemo(() => sortHand(game.hands[0] || []), [game.hands])
@@ -702,12 +788,13 @@ export default function App() {
   // Start the sampled comparison automatically on the human's turn so the live tip can
   // become a hybrid verdict without waiting for a button press.
   useEffect(() => {
+    if (resumePrompt) return
     if (!preferences.coach || !userCanPlay || !evaluatorWorker.current) return
     const key = `${game.handId}:${game.version}:${preferences.compareSamples}`
     if (autoAnalysisKey.current === key) return
     autoAnalysisKey.current = key
     requestMoveAnalysis()
-  }, [preferences.coach, preferences.compareSamples, userCanPlay, game.handId, game.version])
+  }, [preferences.coach, preferences.compareSamples, userCanPlay, game.handId, game.version, resumePrompt])
   // The detailed comparison is an on-demand study panel; a new decision hides it.
   useEffect(() => { setShowMovePanel(false) }, [game.handId, game.version])
   const currentTrickPoints = game.currentTrick.reduce((sum, item) => sum + item.card.points, 0)
@@ -722,6 +809,10 @@ export default function App() {
   const contractPoints = contractTeam === null ? 0 : pointTotals[contractTeam]
   const insight = useMemo(() => coachInsight(game), [game])
   const reading = useMemo(() => tableReading(game), [game])
+  const voidEntries = useMemo(() => {
+    const voids = knownVoids(game)
+    return [0, 2, 1, 3].flatMap(seat => [...voids[seat]].map(suit => ({ seat, suit })))
+  }, [game])
   const coachObjective = useMemo(() => {
     const tricksLeft = Math.max(0, 8 - game.tricks.length)
     if (game.phase === 'auction') {
@@ -911,6 +1002,29 @@ export default function App() {
   const displayTrickPoints = displayTrick.reduce((sum, play) => sum + play.card.points, 0)
   const displayWinner = game.pausedTrick?.winner
   const pairJustDeclared = game.pair && game.pausedTrick && game.pair.trickNumber === game.pausedTrick.number ? game.pair : null
+  const resumeView = savedGame ? savedGameView(savedGame.game) : null
+
+  function continueSavedGame() {
+    setResumePrompt(false)
+    setSavedGame(null)
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }
+
+  function startNewMatchFromResume() {
+    setResumePrompt(false)
+    setSavedGame(null)
+    newMatch()
+  }
+
+  function restartMatch() {
+    if (!confirmRestart) {
+      setConfirmRestart(true)
+      return
+    }
+    setConfirmRestart(false)
+    setShowSettings(false)
+    newMatch()
+  }
 
   function nextHand() {
     pendingEvaluation.current = null
@@ -921,6 +1035,9 @@ export default function App() {
     setGame(current => newHand((current.dealer + 1) % 4, current.handNumber + 1, current.matchScore, preferences, current.handId + 1, 'New hand. Start by judging your first four cards.'))
   }
   function newMatch() {
+    clearSavedGame()
+    setSavedGame(null)
+    setConfirmRestart(false)
     processedHand.current = null
     analyzedHand.current = null
     pendingEvaluation.current = null
@@ -1032,6 +1149,7 @@ export default function App() {
           {preferences.coach && <span className="coach-dot" aria-hidden="true" />}
         </button>
         <button className="top-action" onClick={() => setShowGuide(true)} aria-label="How to play"><BookOpen size={17} aria-hidden="true" /><span>How to play</span></button>
+        {installPrompt.canInstall && <button className="round-icon-button install-button" onClick={() => { void installPrompt.install() }} aria-label="Install app" title="Install app"><Download size={19} aria-hidden="true" /></button>}
         <button className="round-icon-button" onClick={() => setShowSettings(true)} aria-label="Practice settings"><Settings2 size={20} aria-hidden="true" /></button>
       </div>
     </header>
@@ -1186,6 +1304,12 @@ export default function App() {
             <div>
               <div className="rail-head"><h2>Table notes</h2><Eye size={14} aria-hidden="true" /></div>
               <ul className="coach-reading">{reading.slice(0, 3).map((line, index) => <li key={index} dangerouslySetInnerHTML={{ __html: colorizeSuitSymbols(line) }} />)}</ul>
+              <div className="void-line">
+                <span className="void-label">Voids</span>
+                {voidEntries.length
+                  ? <div className="void-chips">{voidEntries.map(({ seat, suit }) => <span key={`${seat}-${suit}`} className="void-chip" title={`${PLAYER_NAMES[seat]} void in ${SUIT_LABEL[suit]}`} aria-label={`${PLAYER_NAMES[seat]} void in ${SUIT_LABEL[suit]}`}><span>{PLAYER_NAMES[seat]}</span><b className={isRedSuit(suit) ? 'suit-red' : 'suit-light'}>{SUIT_SYMBOL[suit]}</b></span>)}</div>
+                  : <span className="void-empty">None shown yet</span>}
+              </div>
               <p className="rail-footnote"><ShieldCheck size={14} aria-hidden="true" /> Visible information only</p>
             </div>
             <div className="rail-split game-notes-play">
@@ -1261,10 +1385,56 @@ export default function App() {
           <SelectRow title="Bot search samples" description="Budget per bot move. The endgame uses fewer because each sampled deal is solved exactly. Higher is slower but more precise." value={preferences.botSamples} options={BOT_SAMPLE_OPTIONS} suffix="/ move" disabled={!preferences.searchBots} onChange={value => setPreferences(current => ({ ...current, botSamples: value }))} />
         </div>
         <div className="settings-note"><Brain size={15} /><span>Bot and coach searches are sanitized before sampling. They never receive the real hidden hands or the set-aside seventh card of another seat.</span></div>
-        <div className="settings-note"><ShieldCheck size={15} /><span>Session statistics and these settings are stored locally in this browser. The current hand and its review remain in memory.</span></div>
-        <div className="settings-summary"><span>Current hand</span><strong>{ruleSummary(game.rules)}</strong><span>Next hand</span><strong>{ruleSummary(preferences)}</strong></div>
+        <div className="settings-group">
+          <h3 className="settings-group-title">App</h3>
+          <div className="setting-row">
+            <div className="setting-copy"><strong>Match autosave</strong><p>Every bid, card, and score change is saved on this device. Close the tab and continue the same hand when you return.</p></div>
+            <span className="setting-badge"><Check size={12} aria-hidden="true" /> Local</span>
+          </div>
+          <div className="setting-row">
+            <div className="setting-copy">
+              <strong>Install app</strong>
+              <p>{installPrompt.installed
+                ? 'Installed on this device. Open it from your home screen or app list.'
+                : installPrompt.canInstall
+                  ? 'Add the trainer to your device and launch it full-screen, including offline.'
+                  : installPrompt.isIos
+                    ? 'In Safari, tap Share, then Add to Home Screen.'
+                    : 'Use your browser’s install option to add the trainer to your device.'}</p>
+            </div>
+            {installPrompt.installed
+              ? <span className="setting-badge"><Check size={12} aria-hidden="true" /> Installed</span>
+              : installPrompt.canInstall
+                ? <button className="button-secondary setting-action" onClick={() => { void installPrompt.install() }}><Download size={14} aria-hidden="true" /> Install</button>
+                : <span className="setting-hint">{installPrompt.isIos ? 'Share → Home Screen' : 'Browser menu'}</span>}
+          </div>
+          <div className="setting-row">
+            <div className="setting-copy">
+              <strong>Restart match</strong>
+              <p>{confirmRestart ? 'This clears the current hand and starts a fresh match at 0–0.' : 'Discard the current hand and start again at 0–0.'}</p>
+            </div>
+            <button className={`button-secondary setting-action ${confirmRestart ? 'button-danger' : ''}`} onClick={restartMatch}>{confirmRestart ? 'Confirm restart' : 'Restart'}</button>
+          </div>
+        </div>
+        <div className="settings-note"><ShieldCheck size={15} /><span>The current hand, session statistics, and these settings are stored locally in this browser. No account or cloud sync.</span></div>
+        <div className="settings-summary"><span>Current hand</span><RuleSummary rules={game.rules} /><span>Next hand</span><RuleSummary rules={preferences} /></div>
       </div>
       <div className="modal-bottom"><button className="button-primary" onClick={() => setShowSettings(false)}>Done <Check size={15} /></button></div>
+    </Modal>}
+
+    {resumePrompt && savedGame && resumeView && <Modal title="Continue your match?" eyebrow="Welcome back" onClose={continueSavedGame}>
+      <div className="resume-summary">
+        <div className="resume-headline"><strong>{resumeView.hand}</strong><span>{resumeView.phase}</span></div>
+        <div className="resume-facts">
+          <div className="resume-fact"><span>Match</span><strong>{resumeView.score}</strong></div>
+          <div className="resume-fact"><span>Contract</span><strong>{resumeView.contract}</strong></div>
+        </div>
+        <p className="resume-note"><ShieldCheck size={15} aria-hidden="true" /><span>Saved {savedAgo(savedGame.savedAt)} on this device. Your hand and the table stay in this browser.</span></p>
+      </div>
+      <div className="modal-bottom resume-actions">
+        <button className="button-secondary" onClick={startNewMatchFromResume}><RotateCcw size={16} aria-hidden="true" /> Start new match</button>
+        <button className="button-primary" onClick={continueSavedGame}>Continue match <ArrowUpRight size={16} aria-hidden="true" /></button>
+      </div>
     </Modal>}
     <footer className="site-footer"><span>Twenty-Nine Trainer</span><span>Local practice · no account, backend, or external AI · stats stay in this browser</span><span>J · 9 · A · 10 · K · Q · 8 · 7</span></footer>
   </div>
