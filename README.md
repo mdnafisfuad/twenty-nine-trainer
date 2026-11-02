@@ -1,80 +1,178 @@
-# Twenty-Nine Trainer
+<div align="center">
+  <img src="docs/banner.svg" alt="Twenty-Nine Trainer — a quiet card table with a coach that plays fair" width="100%" />
 
-A local-first Twenty-Nine practice game built with React, TypeScript, Vite, and Lucide icons. It runs entirely in the browser with no backend, account, or AI API key.
+  <br /><br />
 
-## Features
+  **Real partnership Twenty-Nine. Search-based bots. A coach that shows its work.**
 
-- Human player plus three bot players in two fixed partnerships.
-- Four-card opening deal, bidding, trump selection, second deal, hidden trump, follow-suit rules, eight tricks, and match scoring.
-- Optional classic rules, each switchable in **Practice settings**:
-  - **Royal pair:** declare the K+Q of trump after your side wins a trick to move the target by 4, never below the 16-point opening minimum.
-  - **Seventh-card trump:** the bidder can let their seventh dealt card set trump sight unseen.
-  - **Double & redouble:** defenders can double to 2 match points and the declaring side can redouble to 4.
-  - **Reverse:** the bidder can declare a no-trump contract; when the face-down 2 indicator is exposed, the ranking flips to 7 high and J low for that trick onward.
-  - **Reverse with trump:** the bidder names a trump suit and keeps the flipped ranking. Once revealed, the trump 7 is the strongest card on the table, and the royal pair can still be declared.
-  - **Last-trick bonus:** the eighth trick carries one extra point.
-- An **auction pause** after the final pass: the completed auction board stays on screen with a Continue button before trump is chosen.
-- A **pause after every completed trick**: the four cards, winner, and points stay on the table until you press Continue.
-- A physical table: a card-stack **match scoreboard** whose suit mark shows the sign, a **28/29-point race** with the bidding side filling from the left, the defence from the right, and a contract marker in between, plus a face-down **trump card** that flips when the suit is revealed. When you are void in the led suit and trump is still hidden, the trump card becomes a button: tap it to reveal the contract before choosing your discard. Seat chips show each player's avatar, card fan, dealer token, and auction win instead of status sentences.
-- **Coach tip history:** step back through earlier advice with previous/next arrows; a Latest jump returns to live advice.
-- Trump-reveal and royal-pair announcements animate on the felt, and the trump card flips when the suit is exposed.
-- **Search-based bots:** partner-aware bidding, plus determinized Monte Carlo card play over plausible unseen deals. Once the contract mode is public, the last four tricks are solved exactly with double-dummy minimax. Bots still use only their own hand and public information; the search never receives the real hidden hands.
-- **Hybrid coach:** a visible-card rule tip starts every turn, then the sampled comparison turns it into a hybrid verdict. The card, plan, and confidence label update when the model has a clear edge; when the views are close, the rule remains the tie-break and the tip explains both. The live coach keeps the evidence behind each claim, plus a bid review after the hand.
-- **Off-turn table reads:** while an opponent or partner is thinking, the coach stops giving you card advice and instead reads the public table: the contract count, known voids, likely suit plan, and what to watch. After a card lands, that read joins the coach history, where the arrows let you revisit what the card was likely trying to do.
-- **Void ledger:** the Table notes strip lists every exposed void by seat and suit as compact chips, alongside the visible-card reading and recent play.
-- **Consistent suit ink:** hearts and diamonds are red everywhere, including coach text, event logs, card labels, and review copy; black suits use the light ink on dark surfaces.
-- **Coach off switch** in the top bar and settings for a clean table with no hints or model panels.
-- Rule-based post-hand feedback for clear tactical opportunities, point donations, wasted control, and uncollected points.
-- **Monte Carlo move evaluator:** compare every legal card against 200 sampled unseen deals by default, with exact double-dummy solving once four or fewer tricks remain. Sample size is adjustable in **Practice settings** from 48 to 400.
-- **Automatic full-hand deep review:** after each hand, re-evaluate each recorded decision across 200 sampled deals by default, show the model's alternative, and estimate how it changes the chance of achieving your team's objective. The review can be run again on demand, and its sample size is adjustable.
-- **Bot controls:** search-based bots can be switched off for faster heuristic play, and the bot search budget can be set to 24, 48, 96, or 200 deals per move.
-- **Autosave and resume:** the table is saved after every bid and card. Returning to the page offers **Continue match** or **Start new match**, and **Restart match** in settings starts a fresh 0–0 match.
-- **Installable PWA:** a web app manifest, maskable icons, and a Workbox service worker precache the full app. Install it from the top bar, Practice settings, or the browser menu, then launch it full-screen and offline.
-- Sampling respects seen cards, known void suits, and public remaining-card counts. The worker receives a sanitized snapshot without opponents' hands or a hidden trump suit.
-- A Web Worker keeps the coach's move-comparison and deep-review simulations off the main UI thread; the bots' own search runs locally in the page during their turn.
-- Interactive trick timeline, contextual hints, local session statistics, and responsive phone/tablet/desktop layouts.
-- Installable static output deployable to Cloudflare Pages.
+  <sub>No backend · no accounts · no API keys · everything runs in your browser</sub>
 
-## Strategy evaluator: what it does
+  <br /><br />
 
-The evaluator does not just rank cards with fixed rules. It samples plausible hidden deals that fit the cards already played, each player's remaining card count, and suits players have shown they are void in. Every candidate legal move is rolled out using the same set of sampled deals, so comparisons are less noisy. Each rollout uses the current bot policy for the rest of the hand.
+  [![React 19](https://img.shields.io/badge/React-19-1a4a35?style=flat-square&labelColor=0d0f0d&logo=react&logoColor=e6d3a8)](https://react.dev) [![TypeScript 5.9](https://img.shields.io/badge/TypeScript-5.9-1a4a35?style=flat-square&labelColor=0d0f0d&logo=typescript&logoColor=e6d3a8)](https://www.typescriptlang.org) [![Vite 8](https://img.shields.io/badge/Vite-8-1a4a35?style=flat-square&labelColor=0d0f0d&logo=vite&logoColor=e6d3a8)](https://vite.dev) [![PWA](https://img.shields.io/badge/PWA-offline--ready-1a4a35?style=flat-square&labelColor=0d0f0d)](https://vite-pwa-org.netlify.app) [![Local-first](https://img.shields.io/badge/local--first-zero%20backend-1a4a35?style=flat-square&labelColor=0d0f0d)](#install-and-play-offline)
 
-When trump is public and four or fewer tricks remain, the rollout is replaced by an exact double-dummy minimax solve on each sampled deal. That removes most of the late-game sampling noise and lets the review distinguish genuinely better endgame plays.
+  <br />
 
-The live tip is a hybrid. It keeps the rule coach's visible-card explanation and plan. Once the sampled comparison is ready, the tip uses the model's card when it has a clear edge, and keeps the rule card as a tie-break when the top options are close. The card shows the rule and sampled views side by side so the player can see why the two agree or differ.
+  [The table](#the-table) · [Rules in one screen](#rules-in-one-screen) · [The fair coach](#a-coach-that-cannot-cheat) · [Run it locally](#run-it-locally)
+</div>
 
-The bots use the same machinery for their own decisions. Each bot sanitizes its view, samples unseen deals, evaluates every legal card against the same deals, and plays the best expected move. Bidding is deterministic and partner-aware: a bot does not outbid a partner who already holds the contract, a raise without partner support must project at least one level above the contract, and a high contested bid needs a larger cushion. There is no random bluffing.
+> The fun of Twenty-Nine is reading the table. The trainer should sharpen that read, not play the hand for you.
 
-The result shows:
+## The table
 
-- Estimated chance your team achieves its objective. If your team bid, that means making the contract; if defending, that means defeating the contract.
-- Estimated contract success rate and expected point margin.
-- Sampling error, the number of sampled deals, and whether hidden trump was approximated.
-- Alternative moves at post-hand review.
+<img src="docs/screenshots/table-desktop.png" alt="The Twenty-Nine Trainer desktop table after the first trick: four cards on the felt, a live contract race, the coach rail, and the full hand below" width="100%" />
 
-**Limits:** this is a teaching approximation, not a perfect solver. It uses the current bot policy for hypothetical continuation, and the unknown trump suit is modelled from plausible opening four-card hands when it is hidden. The percentages are estimates and should be interpreted with the sample count and uncertainty. More samples improve stability but take longer; the default is 200, and 400 is available for close study. The evaluator intentionally does not inspect the actual unseen hands when constructing scenarios.
+<p align="center"><sub>A complete trick stays on the table until you are ready. The coach explains the public read; the contract race shows exactly how far the hand has to travel.</sub></p>
 
-## Rules used in this starter
+<table>
+  <tr>
+    <td width="34%" align="center">
+      <img src="docs/screenshots/table-mobile.png" alt="The mobile table at 390px: score cards, contract race, trump stack, four played cards, and the coach all fit without horizontal scrolling" width="100%" />
+    </td>
+    <td width="66%" valign="middle">
+      <h3>Made for one thumb</h3>
+      <p>The phone layout is not a shrunken desktop. The match score and trump stack are card-sized objects on the felt, the contract race fills the space between them, and the primary controls stay at 44px.</p>
+      <ul>
+        <li>Readable down to <strong>320px</strong>, with no horizontal scroll.</li>
+        <li>Score cards, trump, and table labels clear of the brass inner border.</li>
+        <li>The coach, table notes, and review stack into a single legible column.</li>
+        <li>Install it full-screen and play offline like a native app.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-This is a classic auction variant for practice. Card order is **J > 9 > A > 10 > K > Q > 8 > 7**. Jacks are worth 3 points, nines 2, aces and tens 1, and other cards 0. The usual minimum bid is 16. The default hand has 28 card points; the optional last-trick bonus makes the eighth trick worth one additional point. The first team to +6 game points wins; a team at −6 loses.
+## What makes it different
 
-The settings panel can toggle each optional rule independently:
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <h3>♠ A coach that cannot cheat</h3>
+      <p>The evaluator is stripped of every hidden hand and the unrevealed trump before it runs. It reasons from your cards, the public tricks, and exposed voids — the same information you have.</p>
+    </td>
+    <td width="33%" valign="top">
+      <h3>♦ Bots that think in deals</h3>
+      <p>Each bot samples plausible unseen deals, rolls out every legal card against the same set, and plays the best expected move. No peeking, no random bluffs.</p>
+    </td>
+    <td width="33%" valign="top">
+      <h3>♥ A table, not a dashboard</h3>
+      <p>Physical card stacks for the score, a 28/29 contract race, a patterned trump back that flips on reveal, and a review that reads like a hand ledger.</p>
+    </td>
+  </tr>
+</table>
 
-- **Royal pair.** A player still holding the K+Q of trump may declare it after their side wins a trick. The declaring side's target falls by 4, reduced only as far as the 16-point opening minimum; the defending side's declaration raises the bidding team's target by 4.
-- **Seventh-card trump.** Instead of naming a suit, the bidder asks for the seventh card. The seventh card dealt to the bidder sets trump and is kept out of their hand until trump is revealed. It cannot be led unless it is their last card.
-- **Double and redouble.** After trump is set, the defending team may double the hand to 2 match points. The declaring team may redouble to 4. The contract target is unchanged.
-- **Reverse.** The bidder may declare Reverse instead of a suit. It is a no-trump contract; a 2 is placed as the table indicator and stays face down. The first player who cannot follow suit exposes it, and from that trick onward the ranking flips to **7 high, J low** (point values unchanged). A royal pair cannot be declared. The indicator's suit is cosmetic.
-- **Reverse with trump.** The bidder names a trump suit and the ranking flips to **7 high, J low** once the contract is revealed. The named suit still beats other suits, so the trump 7 is the strongest card on the table and the trump J is the weakest trump. The royal pair can be declared after trump is revealed. The contract stays hidden until the first void, exactly like a normal trump contract.
-- **Last-trick bonus.** The winner of the eighth trick earns one additional point.
+## Everything in the box
 
-The UI enforces follow-suit, so a revoke cannot be played by accident. Single-hand declarations and the Bangladesh-specific bidding sequence are not implemented.
+**The game**
+- The full flow: four-card opening deal, auction, trump selection, second deal, hidden trump, follow-suit play, eight tricks, and match scoring.
+- Optional rules, each switchable in **Practice settings**: royal pair, seventh-card trump, double and redouble, Reverse (no trump), Reverse with trump, and the last-trick bonus.
+- Follow-suit is enforced by the UI, so a revoke cannot happen by accident.
+- Table cues: auction pauses, trick pauses, trump-reveal announcements, and a floating 29 mark at the centre.
 
-## Requirements
+**The table**
+- A card-stack match scoreboard whose suit mark carries the sign, and a 28/29-point race with the bidding side filling from the left and the defence from the right.
+- A face-down trump card that flips when the suit is revealed. If you are void in the led suit and trump is still hidden, tap the card to reveal it before discarding.
+- Seat chips with avatars, card fans, dealer tokens, and auction wins instead of status sentences.
+- Coach tip history with previous/next arrows and a Latest jump back to live advice.
+- Interactive trick timeline, local session statistics, and layouts for phone, tablet, and desktop — down to 320px.
 
-- Node.js 22.12 or newer (the included `.nvmrc` pins Node 22.16.0).
-- pnpm 10.7.1 (the exact version is pinned in `package.json`; Corepack uses that pin).
+**The brain**
+- **Search-based bots:** partner-aware bidding plus determinized Monte Carlo card play. Once the contract mode is public, the last four tricks are solved exactly with double-dummy minimax.
+- **Hybrid coach:** a visible-card rule tip starts every turn; the sampled comparison then upgrades it to a model verdict when there is a clear edge. Close calls keep the rule as the tie-break, and the tip shows both views.
+- **Off-turn table reads:** while someone else is thinking, the coach stops giving card advice and reads the public table instead — contract count, known voids, likely suit plan, and what to watch.
+- **Void ledger:** every exposed void is listed by seat and suit in the Table notes strip, beside the visible-card reading and recent play.
+- **Deep review:** every recorded decision is re-evaluated after the hand, with the model's alternative and an estimate of how it changes the chance of making or defeating the contract. Review can be re-run on demand.
+- **Consistent suit ink:** hearts and diamonds are red everywhere — cards, coach text, event logs, and review copy — while black suits use the light ink on dark surfaces.
+- **Off switch:** hide the coach and every model panel for a clean practice table.
 
-## Run locally with pnpm
+**The app**
+- **Autosave and resume:** the table is saved after every bid and card. Returning offers **Continue match** or **Start new match**, and **Restart match** starts a fresh 0–0.
+- **Installable PWA:** manifest, maskable icons, and a Workbox service worker precache the full app. Install from the top bar, Practice settings, or the browser menu.
+- **Offline-first:** launch it full-screen with no connection. No server round-trip is needed to deal, bid, play, or review.
+- Everything else stays local too: preferences and session statistics live in browser storage, with no analytics or tracking.
+
+## Rules in one screen
+
+Card order is **J > 9 > A > 10 > K > Q > 8 > 7**. The usual opening bid is 16; the default hand has 28 card points. The first team to **+6 game points** wins, and a team at **−6** loses.
+
+| Rank | **J** | **9** | **A** | **10** | **K** | **Q** | **8** | **7** |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Points | **3** | **2** | 1 | 1 | 0 | 0 | 0 | 0 |
+
+In Reverse, the order flips to **7 high and J low**; point values stay the same.
+
+<table>
+  <tr>
+    <th align="left" width="24%">Optional rule</th>
+    <th align="left">What it changes</th>
+  </tr>
+  <tr>
+    <td><strong>Royal pair</strong></td>
+    <td>Declare the K+Q of trump after your side wins a trick. The declaring side's target falls by 4, never below the 16-point opening minimum; a defender's declaration raises the bidding team's target by 4.</td>
+  </tr>
+  <tr>
+    <td><strong>Seventh-card trump</strong></td>
+    <td>The bidder lets their seventh dealt card set trump sight unseen. It stays out of their hand until trump is revealed and cannot be led unless it is their last card.</td>
+  </tr>
+  <tr>
+    <td><strong>Double &amp; redouble</strong></td>
+    <td>After trump is set, defenders can double to 2 match points and the declaring side can redouble to 4. The contract target does not change.</td>
+  </tr>
+  <tr>
+    <td><strong>Reverse</strong></td>
+    <td>A no-trump contract with a face-down 2 indicator. The first player who cannot follow suit exposes it; from that trick onward the ranking is 7 high and J low. A royal pair cannot be declared.</td>
+  </tr>
+  <tr>
+    <td><strong>Reverse with trump</strong></td>
+    <td>The bidder names a trump suit and keeps the flipped ranking once revealed. The trump 7 is the strongest card on the table and the trump J is the weakest. The royal pair is allowed after the reveal.</td>
+  </tr>
+  <tr>
+    <td><strong>Last-trick bonus</strong></td>
+    <td>The winner of the eighth trick earns one additional point.</td>
+  </tr>
+</table>
+
+Single-hand declarations and the Bangladesh-specific bidding sequence are not implemented.
+
+## A coach that cannot cheat
+
+The evaluator never receives the real hidden hands. Before any simulation, the game is reduced to a sanitized snapshot:
+
+<table>
+  <tr>
+    <th align="left" width="50%">What the coach sees</th>
+    <th align="left" width="50%">What it never sees</th>
+  </tr>
+  <tr>
+    <td>Your hand · cards played · exposed voids · contract and stake · whose turn it is · the score</td>
+    <td>Opponents' hands · a hidden trump suit · the order of undealt cards</td>
+  </tr>
+</table>
+
+```mermaid
+flowchart LR
+    A["Your hand<br/>public tricks<br/>known voids"] --> B["Sanitized snapshot"]
+    B --> C["Sample plausible<br/>unseen deals"]
+    C --> D["Roll out every<br/>legal card"]
+    D --> E["Verdict<br/>card · plan · confidence"]
+```
+
+Every candidate move is tested against the **same** sampled deals, which keeps comparisons stable. When trump is public and four or fewer tricks remain, the rollout is replaced by an exact double-dummy solve on each sampled deal. That removes most of the late-game noise and lets the review separate a genuinely better endgame play from a lucky one.
+
+The scores are teaching estimates, not a perfect solver. The default is **200 sampled deals** in the live coach and **200** in the full-hand review; both are adjustable. The bots can use 24, 48, 96, or 200 deals per move, or be switched to a faster heuristic. More samples improve stability but take longer. Unknown trump is modelled from plausible opening hands, and the uncertainty is shown with the result.
+
+## Install and play offline
+
+1. Open the app in a Chromium-based browser, Safari, or Edge.
+2. Choose **Install** in the top bar (or **Practice settings → Install app**).
+3. On iPhone or iPad, use **Share → Add to Home Screen**.
+4. Launch from the home screen or app list — the table opens full-screen and works without a connection.
+
+The service worker precaches the app shell, game, fonts, and icons. `public/_headers` keeps the service worker and manifest revalidating, so a new deployment is picked up without leaving players on a stale build.
+
+## Run locally
+
+**Requirements:** Node.js 22.12+ (`.nvmrc` pins 22.16.0) and pnpm 10.7.1 (pinned in `package.json`).
 
 ```bash
 corepack enable
@@ -84,57 +182,61 @@ pnpm dev
 
 Open the local URL printed by Vite.
 
-Create the production bundle:
-
 ```bash
-pnpm build
-pnpm preview
+pnpm typecheck   # TypeScript project build check
+pnpm build       # production bundle in dist/
+pnpm preview     # serve the production build
 ```
 
-The build output is written to `dist/`. Commit the generated `pnpm-lock.yaml` after the first successful `pnpm install` so future installs are reproducible. If the brand mark changes, regenerate the install icons with `pnpm generate-pwa-assets`; the source is `public/logo.svg`.
+The PWA install icons are generated from `public/logo.svg`:
+
+```bash
+pnpm generate-pwa-assets
+```
 
 ## Deploy to Cloudflare Pages
 
-The project is a static Vite SPA. `public/_redirects` provides the SPA fallback, `public/_headers` adds security and cache headers, and `wrangler.jsonc` points Wrangler at `dist`.
+The project is a static Vite SPA. `public/_redirects` supplies the SPA fallback, `public/_headers` adds security and cache headers, and `wrangler.jsonc` points Wrangler at `dist`.
 
-1. Push this project to a Git repository.
+1. Push the repository to GitHub.
 2. In Cloudflare, open **Workers & Pages → Create application → Pages → Import an existing Git repository**.
-3. Select the repository and use these build settings:
+3. Select the repository and use:
    - **Framework preset:** React (Vite) or None
    - **Build command:** `corepack pnpm install --frozen-lockfile && corepack pnpm build`
    - **Build output directory:** `dist`
-   - **Node.js version:** 22.16.0 or newer in the Node 22 line
-4. `pnpm-lock.yaml` is committed, so the frozen install is reproducible. Subsequent pushes to the production branch trigger a new build.
+   - **Node.js version:** 22.16.0 or newer on the Node 22 line
+4. `pnpm-lock.yaml` is committed, so the frozen install is reproducible. Pushes to the production branch trigger a new build.
 
-Alternatively, build locally and deploy with Wrangler:
+Or build and deploy with Wrangler:
 
 ```bash
 pnpm build
 npx wrangler pages deploy dist
 ```
 
-The `_redirects` and `_headers` files are copied into `dist/` by Vite. The game, session statistics, and rule preferences are saved in local browser storage, so a reload resumes the same hand. The build also emits `manifest.webmanifest`, `sw.js`, and the Workbox runtime; `_headers` keeps the service worker, registration script, and manifest revalidating so new deployments are picked up. No Cloudflare Worker, environment variables, database, or secret key is required.
+No Cloudflare Worker, environment variables, database, or secret key is required. Game state, preferences, and session statistics stay in local browser storage.
 
-## Simple architecture
+## Architecture
 
-- `src/game.ts` — pure rules, auction, trump reveal, trick resolution, bot policy, scoring, bid records, and deterministic high-confidence coaching checks.
-- `src/coach.ts` — visible-information insight engine: bid/trump/play recommendations, suit and unseen-card reading, and post-hand lessons.
-- `src/ai/evaluator.ts` — sanitized belief states, unseen-deal sampling, move rollouts, and full-hand evaluation.
-- `src/ai/evaluator.worker.ts` — background worker for expensive strategy calculations.
-- `src/App.tsx` — match strip, felt table, pause bar, decision dock, stake panel, coach rail, review screen, settings, resume prompt, install prompt, and browser-local stats.
-- `src/persistence.ts` — versioned local save, validation, restore, and clear helpers for the current game.
-- `src/useInstallPrompt.ts` — captures the browser install prompt and reports standalone/iOS state.
-- `src/styles.css` — club-table surface, decision-first layout, typography, and responsive rules.
-- `PRODUCT.md` / `DESIGN.md` — durable product truth and the visual system for future work.
-- `vite.config.ts` / `pwa-assets.config.ts` — PWA manifest, Workbox precache, and local icon generation.
-- `public/logo.svg`, `public/pwa-*.png`, `public/apple-touch-icon-180x180.png`, `public/maskable-icon-512x512.png` — install icons and source mark.
-- `public/_redirects`, `public/_headers`, `wrangler.jsonc` — Cloudflare Pages SPA fallback, security/cache headers, and deploy configuration.
+| File | Role |
+|:---|:---|
+| `src/game.ts` | Pure rules, auction, trump reveal, trick resolution, bot policy, scoring, bid records, and deterministic coaching checks. |
+| `src/coach.ts` | Visible-information insight engine: bid, trump, and play advice; suit and unseen-card reading; post-hand lessons. |
+| `src/ai/evaluator.ts` | Sanitized belief states, unseen-deal sampling, move rollouts, and full-hand evaluation. |
+| `src/ai/evaluator.worker.ts` | Background worker that keeps expensive strategy calculations off the UI thread. |
+| `src/ai/search.ts` | Bot search budget and hidden-information fallback. |
+| `src/ai/endgame.ts` | Exact double-dummy solve for the closing tricks. |
+| `src/App.tsx` | Match strip, felt table, pause bar, decision dock, stake panel, coach rail, review, settings, resume prompt, install prompt, and local stats. |
+| `src/persistence.ts` | Versioned local save, validation, restore, and clear helpers for the current game. |
+| `src/useInstallPrompt.ts` | Captures the browser install prompt and reports standalone/iOS state. |
+| `src/styles.css` | The club-table surface, typography, and responsive rules. |
+| `PRODUCT.md` / `DESIGN.md` | Durable product truth and the visual system for future work. |
+| `vite.config.ts` / `pwa-assets.config.ts` | PWA manifest, Workbox precache, and local icon generation. |
+| `public/` | Logo and install icons, SPA fallback, and cache/security headers. |
 
 The evaluator is deliberately separated from the UI. The worker only receives the player's own hand, public tricks, and publicly inferable information; actual opponent hands and hidden trump are stripped before analysis.
 
-## Validation note
-
-The project installs and builds locally with pnpm 10.7.1 and Node 22.12+:
+## Validation
 
 ```bash
 pnpm install
@@ -142,4 +244,10 @@ pnpm typecheck
 pnpm build
 ```
 
-The dev server is started with `pnpm dev`; the production bundle is written to `dist/`. Commit `pnpm-lock.yaml` so future installs and Cloudflare Pages builds are reproducible.
+The production bundle is written to `dist/`. Commit `pnpm-lock.yaml` so future installs and Cloudflare Pages builds remain reproducible.
+
+---
+
+<div align="center">
+  <sub>Built for the card table. No tracking, no accounts, no API keys.</sub>
+</div>
