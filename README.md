@@ -11,10 +11,11 @@ A local-first Twenty-Nine practice game built with React, TypeScript, Vite, and 
   - **Seventh-card trump:** the bidder can let their seventh dealt card set trump sight unseen.
   - **Double & redouble:** defenders can double to 2 match points and the declaring side can redouble to 4.
   - **Reverse:** the bidder can declare a no-trump contract; when the face-down 2 indicator is exposed, the ranking flips to 7 high and J low for that trick onward.
+  - **Reverse with trump:** the bidder names a trump suit and keeps the flipped ranking. Once revealed, the trump 7 is the strongest card on the table, and the royal pair can still be declared.
   - **Last-trick bonus:** the eighth trick carries one extra point.
 - An **auction pause** after the final pass: the completed auction board stays on screen with a Continue button before trump is chosen.
 - A **pause after every completed trick**: the four cards, winner, and points stay on the table until you press Continue.
-- A physical table: a card-stack **match scoreboard**, a face-down **trump card** that flips when the suit is revealed, and seat chips that show each player's avatar, card fan, dealer token, and auction win instead of status sentences.
+- A physical table: a card-stack **match scoreboard** whose suit mark shows the sign, a **28/29-point race** with the bidding side filling from the left, the defence from the right, and a contract marker in between, plus a face-down **trump card** that flips when the suit is revealed. When you are void in the led suit and trump is still hidden, the trump card becomes a button: tap it to reveal the contract before choosing your discard. Seat chips show each player's avatar, card fan, dealer token, and auction win instead of status sentences.
 - **Coach tip history:** step back through earlier advice with previous/next arrows; a Latest jump returns to live advice.
 - Trump-reveal and royal-pair announcements animate on the felt, and the trump card flips when the suit is exposed.
 - **Search-based bots:** partner-aware bidding, plus determinized Monte Carlo card play over plausible unseen deals. Once the contract mode is public, the last four tricks are solved exactly with double-dummy minimax. Bots still use only their own hand and public information; the search never receives the real hidden hands.
@@ -60,6 +61,7 @@ The settings panel can toggle each optional rule independently:
 - **Seventh-card trump.** Instead of naming a suit, the bidder asks for the seventh card. The seventh card dealt to the bidder sets trump and is kept out of their hand until trump is revealed. It cannot be led unless it is their last card.
 - **Double and redouble.** After trump is set, the defending team may double the hand to 2 match points. The declaring team may redouble to 4. The contract target is unchanged.
 - **Reverse.** The bidder may declare Reverse instead of a suit. It is a no-trump contract; a 2 is placed as the table indicator and stays face down. The first player who cannot follow suit exposes it, and from that trick onward the ranking flips to **7 high, J low** (point values unchanged). A royal pair cannot be declared. The indicator's suit is cosmetic.
+- **Reverse with trump.** The bidder names a trump suit and the ranking flips to **7 high, J low** once the contract is revealed. The named suit still beats other suits, so the trump 7 is the strongest card on the table and the trump J is the weakest trump. The royal pair can be declared after trump is revealed. The contract stays hidden until the first void, exactly like a normal trump contract.
 - **Last-trick bonus.** The winner of the eighth trick earns one additional point.
 
 The UI enforces follow-suit, so a revoke cannot be played by accident. Single-hand declarations and the Bangladesh-specific bidding sequence are not implemented.

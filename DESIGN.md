@@ -135,9 +135,9 @@ Two families, both carrying real work.
 Desktop is a two-zone app: a fluid table column and a 296px context rail, inside a 1440px frame.
 
 - **Match ribbon** is one horizontal bar in the top bar: score, hand, miniature contract card, dealer, turn state. Cells are divided by hairlines, not six separate cards.
-- **Table column.** A charcoal frame holds the felt. During the auction and trump choice the felt is 430px tall; during play it is 470–560px. Corner facts, auction board, seat place cards, compass-point played cards, and a bottom row of table objects: card-stack scoreboard, contract meter, trump plaque.
+- **Table column.** A charcoal frame holds the felt. During the auction and trump choice the felt is 340–400px tall; during play it is 420–480px. Corner facts, auction board, seat place cards, compass-point played cards, and a bottom row of table objects: card-stack scoreboard, point race, trump plaque.
 - **Decision dock** follows the table: header, hand, action bar. Hint and Compare sit in the header on the player's turn. A completed trick or auction pauses above the dock with Continue.
-- **Right rail.** Coach first; then **Table notes** (visible-card reading plus the last few events); then **Club record** (session stats and ranking). During review the coach gives way to the score slip; the notes and record remain reference.
+- **Right rail.** Coach first, then **Club record** (session stats and ranking). A full-width **Table notes** strip sits under the hand: visible-card reading plus the last few events. During review the coach gives way to the score slip; the notes are hidden because the review already carries them.
 - **Review.** A dark ledger surface, not a white sheet. Serif verdict, four-stat line, coach review and trick timeline, then the full-width deep review.
 - Breakpoints: 1180px collapses the rail below the table; 1100px hides the dealer tile; 900px wraps the match ribbon under the brand and hides the table centre once cards are down; 760px stacks the review; 620px compacts the table and turns the match ribbon into a 2×2 grid; 420px tightens seats, cards, and stats.
 - Touch targets are 44px on phones. The hand wraps rather than shrinking below a readable card size.
@@ -157,9 +157,10 @@ Depth comes from surface steps and hairlines. Cards and modals may carry a soft 
 ## Components
 
 - **Buttons.** Primary is ivory with card ink, 40px tall (44px on phones), 8px radius. Secondary is raised surface with a hairline. Quiet is transparent. No neon fills.
+- **Brand mark.** A brass-edged club seal: deep green ground, double keyline, ivory Newsreader 29, small brass spade. The favicon uses the same seal.
 - **Match ribbon.** Score, hand, contract mini-card, dealer token, turn state; divided by hairlines in one rounded bar.
 - **Table.** Green baize with a fine grain and a double brass inset line. Four dark place cards for the other seats; the human's hand is the dock. Played cards sit at the compass points. Empty slots are dashed hairlines, not buttons.
-- **Table objects.** A physical card stack for the match score; a 3px brass contract meter; a face-down trump card that flips when revealed, with a 2-card reverse indicator.
+- **Table objects.** A physical card stack for the match score, with the sign carried by a team suit: your positive score is a red heart, your negative a black spade; the opponents' positive is a red diamond, their negative a black club. The contract race is a 28/29-point track: bidding side fills from the left, defence from the right, and a brass-and-ivory marker shows the target. The trump card has a brass-keyline card back and flips when revealed; it becomes a tappable reveal when the player is void and the contract is still hidden.
 - **Coach feed.** One read at a time with previous/next, position counter, Latest, and Live. A read has a phase tag and source, a goal line, a title, a summary, an optional action, a plan line, at most two evidence bullets, and a quiet model note. The history is grouped by turn; rule and hybrid updates replace each other instead of stacking.
 - **Off-turn reads.** While an opponent or partner acts, the coach stops giving card advice and reads the public table: contract count, known voids, likely plan. The last-play explanation joins the history; there is no separate live box.
 - **Pause bar.** Names the winner and points, offers Continue and the optional pair declaration. The same bar pauses a completed auction.

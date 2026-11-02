@@ -13,6 +13,8 @@ export interface RuleSet {
   double: boolean
   /** Allow the bidder to declare a no-trump reverse, where the ranking flips on reveal. */
   reverse: boolean
+  /** Allow the bidder to pair a named trump with the reversed ranking. */
+  reverseTrump: boolean
 }
 
 export const DEFAULT_RULES: RuleSet = {
@@ -21,6 +23,7 @@ export const DEFAULT_RULES: RuleSet = {
   seventhCard: true,
   double: true,
   reverse: false,
+  reverseTrump: false,
 }
 
 export interface Card {
@@ -69,7 +72,7 @@ export interface DecisionRecord {
   trumpSuit: Suit | null
   /** Suit known to this player at decision time, or null if the trump was hidden. */
   knownTrumpSuit: Suit | null
-  /** True when the contract is a no-trump reverse. */
+  /** True when the contract uses the reversed ranking (7 high, J low) once revealed. */
   reverse: boolean
   /** True when this player knew the reverse at decision time. */
   knownReverse: boolean
@@ -151,9 +154,9 @@ export interface GameState {
   auctionComplete: boolean
   trumpSuit: Suit | null
   trumpRevealed: boolean
-  /** No-trump reverse contract; the ranking flips when the indicator is revealed. */
+  /** Ranking-flip contract; with no trump suit this is a no-trump reverse. */
   reverse: boolean
-  /** Display suit of the 2-card reverse indicator. It has no effect on play. */
+  /** Display suit of the 2-card reverse indicator for a no-trump reverse. It has no effect on play. */
   indicatorSuit: Suit | null
   /** The bidder's seventh card, set aside until trump is declared. */
   seventhCard: Card | null
@@ -265,6 +268,7 @@ export function newHand(
       seventhCard: rules.seventhCard !== false,
       double: rules.double !== false,
       reverse: rules.reverse === true,
+      reverseTrump: rules.reverseTrump === true,
     },
     pair: null,
     stake: 1,
@@ -547,8 +551,8 @@ export function reverseIndicatorSuit(hand: Card[]): Suit {
 }
 
 /**
- * Reverse is a no-trump contract. The table indicator is a 2; when it is revealed,
- * the ranking flips (7 high, J low) for that trick and every later trick.
+ * Reverse is a ranking-flip contract. Without a trump suit the table indicator is a 2;
+ * when it is revealed, the ranking flips (7 high, J low) for that trick and every later trick.
  */
 export function chooseReverse(state: GameState, player: number): GameState {
   if (state.phase !== 'trump' || state.bidder !== player || !state.rules.reverse) return state
@@ -562,6 +566,23 @@ export function chooseReverse(state: GameState, player: number): GameState {
   return startPlay(state, hands, null, null, log,
     `${leadLine((state.dealer + 1) % 4)}. The contract stays hidden until the first void.`,
     true, indicatorSuit)
+}
+
+/**
+ * The reverse-with-trump variant keeps a named trump suit and uses the flipped ranking:
+ * the trump 7 is the strongest card on the table, while the trump J is the weakest trump.
+ */
+export function chooseReverseTrump(state: GameState, player: number, suit: Suit): GameState {
+  if (state.phase !== 'trump' || state.bidder !== player || !state.rules.reverseTrump) return state
+  const { hands } = completeDeal(state, false)
+  const log = [
+    ...state.log,
+    player === 0 ? `You declare Reverse with ${SUIT_LABEL[suit]} as trump.` : `${PLAYER_NAMES[player]} sets a hidden contract.`,
+    'Four more cards dealt to each player.',
+  ].slice(-28)
+  return startPlay(state, hands, suit, null, log,
+    `${leadLine((state.dealer + 1) % 4)}. Trump and the reverse ranking stay hidden until the first void.`,
+    true)
 }
 
 /**
@@ -645,7 +666,7 @@ export function contractTarget(state: Pick<GameState, 'highBid' | 'bidder' | 'pa
 
 /** A player may declare K+Q of trump after their side wins a trick, while both cards are still held. */
 export function pairEligible(state: GameState, player: number): boolean {
-  if (state.reverse || !state.rules.pair || state.pair || !state.trumpRevealed || !state.trumpSuit || state.phase !== 'play') return false
+  if (!state.rules.pair || state.pair || !state.trumpRevealed || !state.trumpSuit || state.phase !== 'play') return false
   const lastTrick = state.tricks[state.tricks.length - 1]
   if (!lastTrick || teamOf(lastTrick.winner) !== teamOf(player)) return false
   const hand = state.hands[player] ?? []
@@ -833,7 +854,7 @@ export function chooseBotCard(state: GameState, player: number): Card {
   // Any off-suit play by the bidder (or any void play after the reveal) makes trump live.
   const revealed = state.trumpRevealed || (trick.length > 0 && !canFollow && knowsMode)
   const reverseNow = state.reverse && revealed
-  const trump = revealed && !state.reverse ? state.trumpSuit : null
+  const trump = revealed ? state.trumpSuit : null
   const strength = (card: Card) => cardStrength(card, reverseNow)
   const unseen = publicUnseenCards(state, player)
   const team = teamOf(player)
@@ -988,7 +1009,7 @@ function buildBidReview(records: BidRecord[], reverse = false): BidReview | null
   const last = records[records.length - 1]
   const advised = (committed ?? last).advisedBid
   const suit = SUIT_LABEL[(committed ?? last).bestSuit]
-  const suitPhrase = reverse ? 'in a no-trump reverse' : `with ${suit} as trump`
+  const suitPhrase = reverse ? 'in a reverse contract' : `with ${suit} as trump`
   if (!committed) {
     if (last.partnerWasHigh) {
       return { verdict: 'good', title: 'Correct to stay out of your partner’s auction', detail: 'Your partner already held the highest bid. Passing kept the contract at a level your side had chosen instead of raising your own team.', advised, actual: null }
@@ -1006,6 +1027,44 @@ function buildBidReview(records: BidRecord[], reverse = false): BidReview | null
     return { verdict: 'timid', title: `Bidding ${bid} was below the hand’s ceiling`, detail: `The same cards could support about ${advised}. Bidding closer to that level wins more auctions without making the cards you play any harder.`, advised, actual: bid }
   }
   return { verdict: 'good', title: `Your bid of ${bid} matched the hand`, detail: `The opening four project around ${advised} points, so the contract was pitched at a realistic level.`, advised, actual: bid }
+}
+
+/**
+ * The player who is void in the led suit may flip the hidden contract before choosing a card.
+ * This is the same reveal that would happen when they play off-suit, but it lets the table
+ * read the trump and the new ranking first.
+ */
+export function revealHiddenContract(state: GameState, player: number): GameState {
+  if (state.phase !== 'play' || state.pausedTrick || state.trumpRevealed || state.currentPlayer !== player) return state
+  const ledSuit = state.currentTrick[0]?.card.suit
+  if (!ledSuit) return state
+  const hand = state.hands[player] ?? []
+  const followCards = state.bidder === player && state.seventhCard ? [...hand, state.seventhCard] : hand
+  if (followCards.some(card => card.suit === ledSuit)) return state
+  if (!state.reverse && !state.trumpSuit) return state
+
+  let hands = state.hands
+  if (state.seventhCard && state.bidder !== null) {
+    hands = state.hands.map((seat, index) => index === state.bidder ? [...seat, state.seventhCard!] : seat)
+  }
+  const reverseWithTrump = state.reverse && !!state.trumpSuit
+  const leadLabel = SUIT_LABEL[ledSuit]
+  const logEntry = state.reverse
+    ? reverseWithTrump
+      ? `${act(player, 'cannot follow', 'cannot follow')} ${leadLabel}—trump is revealed: ${SUIT_LABEL[state.trumpSuit!]} with the reverse ranking (7 high, J low).`
+      : `${act(player, 'cannot follow', 'cannot follow')} ${leadLabel}—reverse revealed: 7 is high, J is low.`
+    : `${act(player, 'cannot follow', 'cannot follow')} ${leadLabel}—trump is revealed: ${SUIT_LABEL[state.trumpSuit!]}.`
+  return withVersion(state, {
+    hands,
+    trumpRevealed: true,
+    seventhCard: null,
+    log: [...state.log, logEntry].slice(-32),
+    message: state.reverse
+      ? reverseWithTrump
+        ? `Reverse revealed: ${SUIT_LABEL[state.trumpSuit!]} is trump—7 is high and J is low.`
+        : 'Reverse revealed: no trump—7 is high and J is low.'
+      : `Trump revealed: ${SUIT_LABEL[state.trumpSuit!]} can now beat other suits.`,
+  })
 }
 
 export function playCard(state: GameState, player: number, cardId: string): GameState {
@@ -1050,8 +1109,11 @@ export function playCard(state: GameState, player: number, cardId: string): Game
     stake: state.stake,
     seventhCard: state.seventhCard ? { ...state.seventhCard } : null,
   }] : state.decisions
+  const reverseWithTrump = state.reverse && !!state.trumpSuit
   const revealText = state.reverse
-    ? `${act(player, 'cannot follow', 'cannot follow')} ${SUIT_LABEL[ledSuit!]}—reverse revealed: 7 is high, J is low.`
+    ? reverseWithTrump
+      ? `${act(player, 'cannot follow', 'cannot follow')} ${SUIT_LABEL[ledSuit!]}—trump is revealed: ${SUIT_LABEL[state.trumpSuit!]} with the reverse ranking (7 high, J low).`
+      : `${act(player, 'cannot follow', 'cannot follow')} ${SUIT_LABEL[ledSuit!]}—reverse revealed: 7 is high, J is low.`
     : isSeventhPlay
       ? `${act(player, 'shows', 'show')} the seventh card—trump is revealed: ${SUIT_LABEL[state.trumpSuit!]}.`
       : `${act(player, 'cannot follow', 'cannot follow')} ${SUIT_LABEL[ledSuit!]}—trump is revealed: ${SUIT_LABEL[state.trumpSuit!]}.`
@@ -1065,7 +1127,9 @@ export function playCard(state: GameState, player: number, cardId: string): Game
     log: [...state.log, logEntry].slice(-32),
     message: revealsNow
       ? state.reverse
-        ? 'Reverse revealed: no trump—7 is high and J is low.'
+        ? reverseWithTrump
+          ? `Reverse revealed: ${SUIT_LABEL[state.trumpSuit!]} is trump—7 is high and J is low.`
+          : 'Reverse revealed: no trump—7 is high and J is low.'
         : `Trump revealed: ${SUIT_LABEL[state.trumpSuit!]} can now beat other suits.`
       : `${PLAYER_NAMES[player]} played ${cardText(card)}.`,
   })

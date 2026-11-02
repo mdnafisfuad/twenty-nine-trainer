@@ -6,10 +6,10 @@ import {
 } from 'lucide-react'
 import {
   applyBid, botBid, botDoubleDecision, botRedoubleDecision, cardText,
-  chooseBotCard, chooseBotTrump, chooseReverse, chooseSeventhCard, chooseTrump, continueAfterAuction,
+  chooseBotCard, chooseBotTrump, chooseReverse, chooseReverseTrump, chooseSeventhCard, chooseTrump, continueAfterAuction,
   continueAfterTrick, contractTarget, declarePair, DEFAULT_RULES, isRedSuit, legalCardsFor,
   maxBidFor, newHand, openingReport, pairEligible, playCard, PLAYER_NAMES, PLAYER_POSITIONS,
-  resolveStake, SUITS, SUIT_LABEL, SUIT_SYMBOL, teamOf, type Card, type GameState, type RuleSet,
+  resolveStake, revealHiddenContract, SUITS, SUIT_LABEL, SUIT_SYMBOL, teamOf, type Card, type GameState, type RuleSet,
   type Suit,
 } from './game'
 import { coachInsight, handInsights, lastPlayInsight, observationInsight, tableReading, type CoachInsight } from './coach'
@@ -72,6 +72,7 @@ function getPreferences(): Preferences {
       seventhCard: parsed?.seventhCard !== false,
       double: parsed?.double !== false,
       reverse: parsed?.reverse === true,
+      reverseTrump: parsed?.reverseTrump === true,
       coach: parsed?.coach !== false,
       compareSamples: sampleChoice(parsed?.compareSamples, COMPARE_SAMPLE_OPTIONS, DEFAULT_COMPARE_SAMPLES),
       reviewSamples: sampleChoice(parsed?.reviewSamples, REVIEW_SAMPLE_OPTIONS, DEFAULT_REVIEW_SAMPLES),
@@ -171,15 +172,42 @@ function teamOfSeat(player: number): 0 | 1 {
   return player % 2 === 0 ? 0 : 1
 }
 
+/** The table's mark: a brass-edged club seal with a serif 29. */
+function BrandMark() {
+  return <span className="brand-mark" aria-hidden="true">
+    <svg viewBox="0 0 36 42" focusable="false">
+      <defs>
+        <linearGradient id="brand-badge" x1="0" y1="0" x2="0.85" y2="1">
+          <stop offset="0" stopColor="#256149" />
+          <stop offset="0.55" stopColor="#1a4a35" />
+          <stop offset="1" stopColor="#113023" />
+        </linearGradient>
+        <linearGradient id="brand-brass" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#e6d3a8" />
+          <stop offset="0.5" stopColor="#c7a86a" />
+          <stop offset="1" stopColor="#a7884f" />
+        </linearGradient>
+      </defs>
+      <rect x="1" y="1" width="34" height="40" rx="6" fill="url(#brand-badge)" stroke="url(#brand-brass)" strokeWidth="1.3" />
+      <rect x="4.3" y="4.3" width="27.4" height="33.4" rx="3.2" fill="none" stroke="rgba(230, 211, 168, 0.4)" />
+      <text x="18" y="24.4" textAnchor="middle" fontFamily="'Newsreader Variable', 'Newsreader', Georgia, serif" fontSize="16.5" fill="#f2ecdd">29</text>
+      <text x="18" y="35.2" textAnchor="middle" fontSize="9.2" fill="#d8bf8e">♠</text>
+    </svg>
+  </span>
+}
+
 /** The match score as a pair of physical card stacks on the felt. */
 function ScoreBoard({ score }: { score: [number, number] }) {
   const stack = (team: 0 | 1) => {
     const value = score[team]
     const depth = Math.min(5, Math.max(0, Math.abs(value) - 1))
-    return <div className={`score-card-stack ${team === 0 ? 'score-mine' : 'score-theirs'} ${value < 0 ? 'is-negative' : value > 0 ? 'is-positive' : ''}`}>
+    // Positive and negative scores carry a suit mark drawn from the team's own card language.
+    const pip = value === 0 ? null : team === 0 ? (value > 0 ? '♥' : '♠') : (value > 0 ? '♦' : '♣')
+    const pipRed = pip === '♥' || pip === '♦'
+    return <div className={`score-card-stack ${team === 0 ? 'score-mine' : 'score-theirs'} ${value < 0 ? 'is-negative' : value > 0 ? 'is-positive' : 'is-level'}`}>
       {Array.from({ length: depth }, (_, index) => <i key={index} className="score-card-ghost" style={{ '--depth': index } as CSSProperties} aria-hidden="true" />)}
       <div className="score-card" aria-hidden="true">
-        <span className={`score-card-pip ${value < 0 ? 'red' : 'black'}`}>{value < 0 ? '♦' : '♠'}</span>
+        {pip && <span className={`score-card-pip ${pipRed ? 'is-red' : 'is-black'}`}>{pip}</span>}
         <strong>{value > 0 ? `+${value}` : value}</strong>
       </div>
     </div>
@@ -191,37 +219,78 @@ function ScoreBoard({ score }: { score: [number, number] }) {
   </div>
 }
 
+/** An at-a-glance points race: bidding side from the left, defence from the right, target in between. */
+function ContractProgress({ target, contractPoints, defencePoints, contractTeam, total }: {
+  target: number
+  contractPoints: number
+  defencePoints: number
+  contractTeam: 0 | 1
+  total: number
+}) {
+  const bidPct = Math.min(100, (contractPoints / total) * 100)
+  const defencePct = Math.min(100, (defencePoints / total) * 100)
+  const targetPct = Math.min(99.2, Math.max(0.8, (target / total) * 100))
+  const need = Math.max(0, target - contractPoints)
+  const made = need === 0
+  return <div className={`contract-progress ${made ? 'is-made' : ''}`} role="img" aria-label={`Contract ${target} points. ${contractTeam === 0 ? 'Your' : 'The bidding'} side has ${contractPoints}; the defence has ${defencePoints}; ${total} points in the hand.`}>
+    <div className="contract-progress-head">
+      <span className="contract-progress-title">Contract <b>{target}</b><em className="contract-progress-need">{made ? 'made' : `${need} to go`}</em></span>
+      <span className="contract-progress-teams"><b className="is-bid">{contractPoints}</b><i>/</i><b className="is-def">{defencePoints}</b></span>
+    </div>
+    <div className="contract-progress-track" style={{ '--steps': total } as CSSProperties}>
+      <span className="contract-progress-fill is-bid" style={{ width: `${bidPct}%` }} />
+      <span className="contract-progress-fill is-def" style={{ width: `${defencePct}%` }} />
+      <span className="contract-progress-target" style={{ left: `${targetPct}%` }} aria-hidden="true"><i /></span>
+    </div>
+    <div className="contract-progress-foot">
+      <span>{made ? 'Target covered' : `${need} point${need === 1 ? '' : 's'} to go`}</span>
+      <span>{total} points</span>
+    </div>
+  </div>
+}
+
 /** A face-down trump indicator that flips when the suit is revealed. */
-function TrumpStash({ suit, reverse, indicatorSuit, revealed, knownToYou }: {
+function TrumpStash({ suit, reverse, indicatorSuit, revealed, knownToYou, revealReady, onReveal }: {
   suit: Suit | null
   reverse: boolean
   indicatorSuit: Suit | null
   revealed: boolean
   knownToYou: boolean
+  revealReady: boolean
+  onReveal: () => void
 }) {
-  const shownSuit = reverse ? indicatorSuit : suit
+  const shownSuit = reverse ? (suit ?? indicatorSuit) : suit
   const showReverse = reverse && (revealed || knownToYou)
+  const reverseWithTrump = reverse && !!suit
   const caption = reverse
     ? revealed
-      ? 'No trump'
-      : knownToYou ? 'You: Reverse' : 'Hidden'
+      ? suit ? `${SUIT_LABEL[suit]} · 7 high` : 'No trump · 7 high'
+      : knownToYou ? (suit ? `You: ${SUIT_LABEL[suit]}` : 'You: Reverse') : 'Hidden'
     : !suit
       ? 'Not set'
       : revealed
         ? SUIT_LABEL[suit]
         : knownToYou ? `You know: ${SUIT_LABEL[suit]}` : 'Hidden'
-  return <div className={`trump-stash ${revealed ? 'is-revealed' : ''} ${showReverse ? 'is-reverse' : ''}`} aria-label={showReverse ? `Reverse indicator: ${caption}` : `Trump: ${caption}`}>
+  const content = <>
     <span className="table-object-label">{showReverse ? 'Reverse' : 'Trump'}</span>
     <div className={`trump-stash-card ${revealed && shownSuit ? 'stash-flipped' : ''}`}>
       {revealed && shownSuit
         ? <div className={`stash-face ${isRedSuit(shownSuit) ? 'stash-red' : 'stash-black'}`}>
           <span className="stash-index">{reverse ? 'R' : 'T'}</span>
-          <strong>{reverse ? <><em className="stash-two">2</em>{SUIT_SYMBOL[shownSuit]}</> : SUIT_SYMBOL[shownSuit]}</strong>
+          <strong>{reverse && !suit ? <><em className="stash-two">2</em>{SUIT_SYMBOL[shownSuit]}</> : SUIT_SYMBOL[shownSuit]}</strong>
           <span className="stash-index stash-index-bottom">{reverse ? 'R' : 'T'}</span>
         </div>
         : <div className="stash-back"><div className="stash-back-pattern"><span>29</span></div></div>}
     </div>
-    <span className="trump-stash-caption">{caption}</span>
+    <span className="trump-stash-caption">{revealReady ? 'Tap to reveal' : caption}</span>
+  </>
+  if (revealReady) {
+    return <button type="button" className={`trump-stash is-actionable ${revealed ? 'is-revealed' : ''} ${showReverse ? 'is-reverse' : ''}`} onClick={onReveal} aria-label={`Reveal ${reverseWithTrump ? 'the hidden trump and reverse ranking' : reverse ? 'the hidden reverse' : 'the hidden trump'}`}>
+      {content}
+    </button>
+  }
+  return <div className={`trump-stash ${revealed ? 'is-revealed' : ''} ${showReverse ? 'is-reverse' : ''}`} aria-label={showReverse ? `Reverse indicator: ${caption}` : `Trump: ${caption}`}>
+    {content}
   </div>
 }
 
@@ -296,7 +365,7 @@ function Modal({ title, eyebrow, onClose, children }: { title: string; eyebrow?:
   </div>
 }
 
-function TrumpChooser({ onChoose, onSeventh, onReverse, seventhEnabled, reverseEnabled }: { onChoose: (suit: Suit) => void; onSeventh: () => void; onReverse: () => void; seventhEnabled: boolean; reverseEnabled: boolean }) {
+function TrumpChooser({ onChoose, onSeventh, onReverse, onReverseTrump, seventhEnabled, reverseEnabled, reverseTrumpEnabled }: { onChoose: (suit: Suit) => void; onSeventh: () => void; onReverse: () => void; onReverseTrump: (suit: Suit) => void; seventhEnabled: boolean; reverseEnabled: boolean; reverseTrumpEnabled: boolean }) {
   return <div className="trump-chooser">
     <div className="action-copy"><div><h3>Choose your trump</h3><p>Pick the suit you want to control, call the seventh card, or declare Reverse.</p></div></div>
     <div className="suit-choice-grid">
@@ -314,6 +383,16 @@ function TrumpChooser({ onChoose, onSeventh, onReverse, seventhEnabled, reverseE
       <span><strong>Declare Reverse — no trump</strong><small>A 2 is the table indicator. It stays face down; the first void flips the ranking to 7 high and J low. No royal pair.</small></span>
       <ArrowUpRight size={16} aria-hidden="true" />
     </button>}
+    {reverseTrumpEnabled && <div className="reverse-trump-choice">
+      <div className="reverse-trump-head"><span>Reverse with trump</span><small>Name a suit. Once revealed, 7 is high and the trump 7 is the strongest card. The royal pair can be declared.</small></div>
+      <div className="reverse-trump-grid">
+        {SUITS.map(suit => <button key={suit} className="reverse-trump-suit" onClick={() => onReverseTrump(suit)}>
+          <span className={`reverse-trump-symbol ${isRedSuit(suit) ? 'suit-red' : 'suit-light'}`}>{SUIT_SYMBOL[suit]}</span>
+          <span>{SUIT_LABEL[suit]}</span>
+          <ArrowUpRight size={13} aria-hidden="true" />
+        </button>)}
+      </div>
+    </div>}
   </div>
 }
 
@@ -342,7 +421,7 @@ function SelectRow({ title, description, value, options, suffix = 'deals', disab
 }
 
 function ruleSummary(rules: RuleSet): string {
-  return `Pair ${rules.pair ? 'on' : 'off'} · Seventh ${rules.seventhCard ? 'on' : 'off'} · Reverse ${rules.reverse ? 'on' : 'off'} · Double ${rules.double ? 'on' : 'off'} · Last trick ${rules.lastTrickBonus ? 'on' : 'off'}`
+  return `Pair ${rules.pair ? 'on' : 'off'} · Seventh ${rules.seventhCard ? 'on' : 'off'} · Reverse ${rules.reverse ? 'on' : 'off'} · Reverse trump ${rules.reverseTrump ? 'on' : 'off'} · Double ${rules.double ? 'on' : 'off'} · Last trick ${rules.lastTrickBonus ? 'on' : 'off'}`
 }
 
 function MoveAnalysisPanel({ analysis, objectiveLabel, onClose }: { analysis: MoveEvaluation; objectiveLabel: string; onClose: () => void }) {
@@ -418,7 +497,7 @@ function ReviewScreen({ game, onNext, onNewMatch, onSelectTrick, selectedTrick, 
   return <div className="review-screen">
     <div className="review-topline"><div><h2>{headline}</h2><p className="review-meta">Hand {String(game.handNumber).padStart(2, '0')} · post-hand review</p><p className="review-subtitle">Review the decisions, not just the result. Hidden cards can create unlucky outcomes without making a move wrong.</p></div><div className="review-top-right"><div className={`result-stamp ${goodForUs ? 'result-good' : 'result-bad'}`}><span>{goodForUs ? <Check size={16} /> : <ArrowDownRight size={16} />}</span>{ourContract ? (review.success ? 'Contract made' : 'Contract missed') : (review.success ? 'Opponents made it' : 'Defence held')}{review.stake > 1 && <b className="stake-chip">{review.stake}×</b>}</div>{review.matchWinner === null && <button className="button-primary" onClick={onNext}>Deal next hand <ArrowUpRight size={16} aria-hidden="true" /></button>}</div></div>
     <div className="review-stat-grid">
-      <div className="review-stat"><span>Winning bid</span><strong>{review.bid}</strong><small><SuitText text={`${PLAYER_NAMES[review.bidder]} · ${review.reverse ? 'No trump · Reverse' : review.trumpSuit ? `${SUIT_SYMBOL[review.trumpSuit]} ${SUIT_LABEL[review.trumpSuit]}` : 'Hidden trump'}`} /></small></div>
+      <div className="review-stat"><span>Winning bid</span><strong>{review.bid}</strong><small><SuitText text={`${PLAYER_NAMES[review.bidder]} · ${review.reverse ? (review.trumpSuit ? `Reverse · ${SUIT_LABEL[review.trumpSuit]}` : 'No trump · Reverse') : review.trumpSuit ? `${SUIT_SYMBOL[review.trumpSuit]} ${SUIT_LABEL[review.trumpSuit]}` : 'Hidden trump'}`} /></small></div>
       <div className="review-stat"><span>Contract target</span><strong>{review.target}</strong><small>{review.pair ? `Royal pair by ${PLAYER_NAMES[review.pair.player]}` : 'Bid unchanged'}{review.stake > 1 ? ` · ${review.stake} match points` : ''}</small></div>
       <div className="review-stat"><span>Your team</span><strong>{review.teamPoints[0]} <small>/ 28{review.lastTrickBonus ? '+1' : ''}</small></strong><small>{review.cardPoints[0]} card points{review.lastTrickBonus ? ' + last trick bonus' : ''}</small></div>
       <div className="review-stat"><span>Opponents</span><strong>{review.teamPoints[1]}</strong><small>{review.cardPoints[1]} card points</small></div>
@@ -480,7 +559,7 @@ type PendingEvaluation = { id: number; kind: 'moves' | 'review'; version: number
 
 type TableAnnouncement =
   | { kind: 'trump'; suit: Suit }
-  | { kind: 'reverse'; suit: Suit | null }
+  | { kind: 'reverse'; suit: Suit | null; trump: Suit | null }
   | { kind: 'pair'; player: number; effect: 'reduce' | 'raise'; target: number }
 
 export default function App() {
@@ -614,6 +693,12 @@ export default function App() {
     game.stakeStage === 'defend' ? teamOf(0) !== teamOf(game.bidder) : teamOf(0) === teamOf(game.bidder)
   )
   const currentLegal = useMemo(() => userCanPlay ? legalCardsFor(game, 0).map(card => card.id) : [], [game, userCanPlay])
+  const ledSuit = game.currentTrick[0]?.card.suit ?? null
+  const userFollowCards = useMemo(() => {
+    const hand = game.hands[0] ?? []
+    return game.bidder === 0 && game.seventhCard && !game.trumpRevealed ? [...hand, game.seventhCard] : hand
+  }, [game.hands, game.bidder, game.seventhCard, game.trumpRevealed])
+  const userCanReveal = userCanPlay && !game.trumpRevealed && !!ledSuit && !userFollowCards.some(card => card.suit === ledSuit) && (game.reverse || !!game.trumpSuit)
   // Start the sampled comparison automatically on the human's turn so the live tip can
   // become a hybrid verdict without waiting for a button press.
   useEffect(() => {
@@ -635,7 +720,6 @@ export default function App() {
   }, [game.tricks])
   const contractTeam = game.bidder === null ? null : teamOf(game.bidder)
   const contractPoints = contractTeam === null ? 0 : pointTotals[contractTeam]
-  const targetPct = target > 0 ? Math.min(100, (contractPoints / target) * 100) : 0
   const insight = useMemo(() => coachInsight(game), [game])
   const reading = useMemo(() => tableReading(game), [game])
   const coachObjective = useMemo(() => {
@@ -803,7 +887,7 @@ export default function App() {
     previousReveal.current = game.trumpRevealed
     if (!game.trumpRevealed) return
     if (game.reverse) {
-      setAnnouncement({ kind: 'reverse', suit: game.indicatorSuit })
+      setAnnouncement({ kind: 'reverse', suit: game.indicatorSuit, trump: game.trumpSuit })
       const timer = window.setTimeout(() => setAnnouncement(current => current?.kind === 'reverse' ? null : current), 2400)
       return () => window.clearTimeout(timer)
     }
@@ -853,6 +937,8 @@ export default function App() {
   function chooseUserTrump(suit: Suit) { setGame(current => chooseTrump(current, 0, suit)) }
   function chooseUserSeventh() { setGame(current => chooseSeventhCard(current, 0)) }
   function chooseUserReverse() { setGame(current => chooseReverse(current, 0)) }
+  function chooseUserReverseTrump(suit: Suit) { setGame(current => chooseReverseTrump(current, 0, suit)) }
+  function revealUserTrump() { setGame(current => revealHiddenContract(current, 0)) }
   function continueAuction() { setGame(current => continueAfterAuction(current)) }
   function continueTrick() { setGame(current => continueAfterTrick(current)) }
   function humanStake(double: boolean) { setGame(current => resolveStake(current, double)) }
@@ -896,7 +982,7 @@ export default function App() {
   return <div className="app-shell">
     <a className="skip-link" href="#main">Skip to the table</a>
     <header className="topbar">
-      <div className="brand-lockup"><div className="brand-mark"><span>2</span><span>9</span><i>♠</i></div><div className="brand-text"><div>Twenty-Nine <span>Trainer</span></div><small>Contract twenty-nine · practice table</small></div></div>
+      <div className="brand-lockup"><BrandMark /><div className="brand-text"><div>Twenty-Nine <span>Trainer</span></div><small>Contract twenty-nine · practice table</small></div></div>
       <div className="match-strip" role="group" aria-label="Match status">
         <div className="score-cluster">
           <div className={`team-score ${game.matchScore[0] > 0 ? 'is-ahead' : game.matchScore[0] < 0 ? 'is-behind' : ''}`}>
@@ -917,7 +1003,7 @@ export default function App() {
           <span className="contract-mini" aria-hidden="true">
             {game.highBid === null
               ? <span className="contract-mini-back">29</span>
-              : game.reverse
+              : game.reverse && !game.trumpSuit
                 ? <>
                   <span className="contract-mini-rank">{reverseVisible ? '2' : '?'}</span>
                   <span className={`contract-mini-suit ${reverseVisible && game.indicatorSuit ? (isRedSuit(game.indicatorSuit) ? 'suit-red' : 'suit-light') : 'suit-muted'}`}>{reverseVisible && game.indicatorSuit ? SUIT_SYMBOL[game.indicatorSuit] : '?'}</span>
@@ -930,7 +1016,7 @@ export default function App() {
           <span className="tile-copy">
             <span>Contract</span>
             <strong>{game.highBid === null ? 'Open' : `Target ${target}`}</strong>
-            <small>{game.highBid === null ? 'No bid yet' : game.reverse ? (reverseVisible ? 'Reverse · no trump' : 'Trump hidden') : game.stake > 1 ? `${game.stake}× stake${game.pair ? ' · pair' : ''}` : game.pair ? 'Royal pair' : `Bidder ${PLAYER_NAMES[game.bidder ?? 0]}`}</small>
+            <small>{game.highBid === null ? 'No bid yet' : game.reverse ? (reverseVisible ? (game.trumpSuit ? `Reverse · ${SUIT_LABEL[game.trumpSuit]}` : 'Reverse · no trump') : 'Contract hidden') : game.stake > 1 ? `${game.stake}× stake${game.pair ? ' · pair' : ''}` : game.pair ? 'Royal pair' : `Bidder ${PLAYER_NAMES[game.bidder ?? 0]}`}</small>
           </span>
         </div>
         <div className="match-tile match-dealer">
@@ -959,13 +1045,13 @@ export default function App() {
               <div className="table-fact fact-tl"><span>Trick</span><strong>{game.pausedTrick?.number ?? Math.min(8, game.tricks.length + 1)}<em>/8</em></strong></div>
               <div className="table-fact fact-tr"><span>On table</span><strong>{displayTrickPoints}<em>{displayTrickPoints === 1 ? ' pt' : ' pts'}</em></strong></div>
               {(game.phase === 'play' || game.phase === 'stake') && [1, 2, 3].map(player => <PlayerSeat key={player} player={player} count={game.hands[player]?.length ?? 0} isCurrent={game.phase === 'play' && game.currentPlayer === player && !game.pausedTrick} dealer={game.dealer === player} bidder={game.bidder === player} />)}
-              {announcement && <div className={`table-announce announce-${announcement.kind}`} key={announcement.kind === 'trump' ? `trump-${announcement.suit}` : announcement.kind === 'reverse' ? `reverse-${announcement.suit}` : `pair-${announcement.player}-${announcement.target}`} role="status" aria-live="polite">
+              {announcement && <div className={`table-announce announce-${announcement.kind}`} key={announcement.kind === 'trump' ? `trump-${announcement.suit}` : announcement.kind === 'reverse' ? `reverse-${announcement.trump ?? announcement.suit}` : `pair-${announcement.player}-${announcement.target}`} role="status" aria-live="polite">
                 {announcement.kind === 'trump' ? <>
                   <div className={`announce-card ${isRedSuit(announcement.suit) ? 'announce-red' : 'announce-black'}`}><span>{SUIT_SYMBOL[announcement.suit]}</span></div>
                   <div className="announce-copy"><span>Trump revealed</span><strong>{SUIT_LABEL[announcement.suit]}</strong></div>
                 </> : announcement.kind === 'reverse' ? <>
-                  <div className="announce-card announce-reverse"><span>2</span><i aria-hidden="true">R</i></div>
-                  <div className="announce-copy"><span>Reverse revealed</span><strong>No trump · 7 is high</strong><small>J is now the lowest card</small></div>
+                  <div className={`announce-card ${announcement.trump ? (isRedSuit(announcement.trump) ? 'announce-red' : 'announce-black') : 'announce-reverse'}`}>{announcement.trump ? <span>{SUIT_SYMBOL[announcement.trump]}</span> : <><span>2</span><i aria-hidden="true">R</i></>}</div>
+                  <div className="announce-copy"><span>Reverse revealed</span><strong>{announcement.trump ? `${SUIT_LABEL[announcement.trump]} · 7 high` : 'No trump · 7 is high'}</strong><small>{announcement.trump ? 'The trump 7 is the strongest card on the table; J is the weakest trump' : 'J is now the lowest card'}</small></div>
                 </> : <>
                   <div className="announce-card announce-crown"><Crown size={30} aria-hidden="true" /></div>
                   <div className="announce-copy"><span>Royal pair</span><strong>{announcement.effect === 'reduce' ? 'Target drops to' : 'Target rises to'} {announcement.target}</strong><small>{PLAYER_NAMES[announcement.player]} showed the K + Q of trump</small></div>
@@ -974,7 +1060,7 @@ export default function App() {
               {game.phase === 'auction' || game.phase === 'trump' ? <div className="table-center is-bidding">
                 <div className="center-logo" aria-hidden="true"><span>29</span><i>♠</i></div>
                 <strong className="center-title">{game.auctionComplete ? 'Auction complete' : game.phase === 'auction' ? 'The auction' : 'Choose your edge'}</strong>
-                <span className="center-subtitle">{game.auctionComplete ? `${PLAYER_NAMES[game.bidder ?? 0]} won at ${game.highBid} · continue below` : game.phase === 'auction' ? (game.highBid === null ? 'Opening bid · minimum 16' : `High bid ${game.highBid} · ${PLAYER_NAMES[game.bidder ?? 0]}`) : game.rules.reverse ? 'Choose a suit, the seventh card, or Reverse' : 'Trump stays hidden until the first void'}</span>
+                <span className="center-subtitle">{game.auctionComplete ? `${PLAYER_NAMES[game.bidder ?? 0]} won at ${game.highBid} · continue below` : game.phase === 'auction' ? (game.highBid === null ? 'Opening bid · minimum 16' : `High bid ${game.highBid} · ${PLAYER_NAMES[game.bidder ?? 0]}`) : game.rules.reverse || game.rules.reverseTrump ? 'Choose a suit, the seventh card, or Reverse' : 'Trump stays hidden until the first void'}</span>
                 {game.phase === 'auction' && <>
                   <div className="auction-seats">
                     {[0, 1, 2, 3].map(player => {
@@ -1011,12 +1097,14 @@ export default function App() {
               </>}
               <div className="felt-bottom">
                 <ScoreBoard score={game.matchScore} />
-                {game.bidder !== null && <div className={`felt-contract ${contractTeam !== 0 ? 'is-opponent' : ''}`}>
-                  <span className="table-object-label">Contract {target}</span>
-                  <div className="felt-contract-body"><div className="contract-meter-track"><i style={{ width: `${targetPct}%` }} /></div></div>
-                  <span className="felt-contract-caption">{contractPoints} / {target} captured</span>
-                </div>}
-                <TrumpStash suit={game.trumpSuit} reverse={game.reverse} indicatorSuit={game.indicatorSuit} revealed={game.trumpRevealed} knownToYou={game.bidder === 0} />
+                {contractTeam !== null && <ContractProgress
+                  target={target}
+                  contractPoints={contractPoints}
+                  defencePoints={pointTotals[contractTeam === 0 ? 1 : 0]}
+                  contractTeam={contractTeam}
+                  total={28 + (game.rules.lastTrickBonus ? 1 : 0)}
+                />}
+                <TrumpStash suit={game.trumpSuit} reverse={game.reverse} indicatorSuit={game.indicatorSuit} revealed={game.trumpRevealed} knownToYou={game.bidder === 0} revealReady={userCanReveal} onReveal={revealUserTrump} />
               </div>
             </div>
           </div>
@@ -1040,7 +1128,7 @@ export default function App() {
             <button className="button-primary" onClick={continueTrick}>{game.tricks.length === 8 ? 'See review' : 'Continue'} <ArrowUpRight size={16} aria-hidden="true" /></button>
           </div>}
 
-          {game.phase === 'trump' && game.bidder === 0 && <TrumpChooser onChoose={chooseUserTrump} onSeventh={chooseUserSeventh} onReverse={chooseUserReverse} seventhEnabled={game.rules.seventhCard} reverseEnabled={game.rules.reverse} />}
+          {game.phase === 'trump' && game.bidder === 0 && <TrumpChooser onChoose={chooseUserTrump} onSeventh={chooseUserSeventh} onReverse={chooseUserReverse} onReverseTrump={chooseUserReverseTrump} seventhEnabled={game.rules.seventhCard} reverseEnabled={game.rules.reverse} reverseTrumpEnabled={game.rules.reverseTrump} />}
 
           {game.phase === 'stake' && <section className="stake-panel" aria-label="Stake decision">
             <div className="stake-copy">
@@ -1142,7 +1230,7 @@ export default function App() {
         <div className="guide-rule"><span>04</span><div><h3>Declare the royal pair</h3><p>If you still hold the K and Q of trump after your side wins a trick, declare the pair. The bidding side drops its target by 4; the defending side raises the bidding team’s target by 4.</p></div></div>
         <div className="guide-rule"><span>05</span><div><h3>Call the seventh card</h3><p>Instead of naming trump, the bidder can call for the seventh card dealt to them. It sets trump sight unseen and stays out of their hand until trump is revealed. Once revealed, it joins the hand.</p></div></div>
         <div className="guide-rule"><span>06</span><div><h3>Double and redouble</h3><p>After trump is set, the defenders may double the hand to 2 match points. The declaring side may redouble to 4. The contract target does not change.</p></div></div>
-        <div className="guide-rule"><span>07</span><div><h3>Declare Reverse</h3><p>Instead of a suit, the bidder may declare Reverse: no trump, with a 2 as the table indicator. The 2 stays face down; the first void exposes it and flips the ranking to 7 high, J low for that trick and every trick after. A royal pair cannot be declared.</p></div></div>
+        <div className="guide-rule"><span>07</span><div><h3>Declare Reverse</h3><p>The bidder may invert the ranking to 7 high, J low. <strong>Reverse (no trump)</strong> uses a 2 as a face-down indicator; the first void exposes it, and no royal pair is possible. <strong>Reverse (with trump)</strong> names a suit that still beats other suits, makes the trump 7 the strongest card on the table, and allows the royal pair.</p></div></div>
         <div className="guide-rule"><span>08</span><div><h3>Review fairly</h3><p>The coach flags clear opportunities when the visible trick allows a reliable comparison. It does not treat every unlucky outcome as a mistake. While another seat acts, it switches to a table read; after a card lands, that read joins the coach history so you can step back through it.</p></div></div>
         <div className="guide-footnote"><CircleHelp size={14} /><span>Optional rules can be changed in Practice settings. Classic auction; single-hand declarations and the Bangladesh-specific bidding sequence are not implemented.</span></div>
       </div>
@@ -1156,6 +1244,7 @@ export default function App() {
           <ToggleRow title="Royal pair (K + Q of trump)" description="After your side wins a trick, declaring the pair moves the target by 4, never below the 16-point opening minimum. Applies to the next hand." checked={preferences.pair} onChange={() => setPreferences(current => ({ ...current, pair: !current.pair }))} />
           <ToggleRow title="Seventh-card trump" description="The bidder may call for the seventh card instead of naming a suit. Applies to the next hand." checked={preferences.seventhCard} onChange={() => setPreferences(current => ({ ...current, seventhCard: !current.seventhCard }))} />
           <ToggleRow title="Reverse (no trump)" description="Adds a Reverse option to the trump chooser. The 2 indicator stays face down; the first void flips the ranking to 7 high, J low. A royal pair cannot be declared. Applies to the next hand." checked={preferences.reverse} onChange={() => setPreferences(current => ({ ...current, reverse: !current.reverse }))} />
+          <ToggleRow title="Reverse (with trump)" description="Adds a reverse option that names a trump suit. The ranking still flips to 7 high, J low, so the trump 7 is the strongest card. A royal pair can be declared. Applies to the next hand." checked={preferences.reverseTrump} onChange={() => setPreferences(current => ({ ...current, reverseTrump: !current.reverseTrump }))} />
           <ToggleRow title="Double & redouble" description="Defenders may double to 2 match points; the declaring side may redouble to 4. Applies to the next hand." checked={preferences.double} onChange={() => setPreferences(current => ({ ...current, double: !current.double }))} />
           <ToggleRow title="Last-trick bonus (+1)" description="The winner of the eighth trick earns one additional point. Applies to the next hand." checked={preferences.lastTrickBonus} onChange={() => setPreferences(current => ({ ...current, lastTrickBonus: !current.lastTrickBonus }))} />
         </div>

@@ -260,7 +260,7 @@ export function evaluateEndgameCandidate(
     hands,
     trick,
     currentPlayer: state.currentPlayer,
-    trumpSuit: state.reverse ? -1 : (state.trumpSuit ? (SUIT_INDEX.get(state.trumpSuit) ?? -1) : -1),
+    trumpSuit: state.trumpSuit ? (SUIT_INDEX.get(state.trumpSuit) ?? -1) : -1,
     reverse: state.reverse,
     declarerTeam,
     tricksPlayed: state.tricks.length,

@@ -91,16 +91,13 @@ button:focus-visible, select:focus-visible, a:focus-visible, [role="switch"]:foc
   backdrop-filter: blur(10px);
 }
 
-.brand-lockup { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-lockup { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .brand-mark {
-  position: relative; width: 34px; height: 38px; flex-shrink: 0;
-  display: grid; grid-template-columns: 1fr 1fr; align-content: center; justify-items: center;
-  border: 1px solid rgba(0, 0, 0, 0.28); border-radius: 6px;
-  background: var(--ivory); color: var(--ink);
-  font-size: 12px; font-weight: 600; line-height: 1;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 3px 10px rgba(0, 0, 0, 0.3);
+  position: relative; width: 36px; height: 42px; flex-shrink: 0;
+  display: block;
+  filter: drop-shadow(0 4px 9px rgba(0, 0, 0, 0.34));
 }
-.brand-mark i { position: absolute; right: 4px; bottom: 3px; font-style: normal; font-size: 8px; color: var(--brass-ink); opacity: 0.55; }
+.brand-mark svg { display: block; width: 100%; height: 100%; }
 .brand-text { min-width: 0; }
 .brand-text > div {
   font-family: 'Newsreader Variable', 'Newsreader', Georgia, serif;
@@ -216,7 +213,7 @@ button:focus-visible, select:focus-visible, a:focus-visible, [role="switch"]:foc
 }
 .felt-table {
   position: relative;
-  height: clamp(470px, 44vw, 560px);
+  height: clamp(420px, 36vw, 480px);
   border-radius: 12px;
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 32%, #235b42 0%, #1b4a35 58%, #153b2a 100%);
@@ -232,7 +229,7 @@ button:focus-visible, select:focus-visible, a:focus-visible, [role="switch"]:foc
   border: 1px solid rgba(199, 168, 106, 0.09); border-radius: 6px;
   pointer-events: none;
 }
-.felt-table.is-bidding { height: clamp(360px, 34vw, 430px); min-height: 360px; }
+.felt-table.is-bidding { height: clamp(340px, 30vw, 400px); min-height: 340px; }
 .felt-grain {
   position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.55;
   background-image: radial-gradient(rgba(255, 255, 255, 0.035) 0.6px, transparent 0.6px);
@@ -368,11 +365,12 @@ button:focus-visible, select:focus-visible, a:focus-visible, [role="switch"]:foc
 
 /* Fittings on the felt */
 .felt-bottom {
-  position: absolute; left: 20px; right: 20px; bottom: 16px; z-index: 5;
-  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  position: absolute; left: 26px; right: 26px; bottom: 18px; z-index: 5;
+  display: grid; grid-template-columns: 96px minmax(0, 1fr) 96px;
+  align-items: end; gap: 20px;
 }
 .table-object-label { display: block; margin-bottom: 4px; font-size: 9.5px; color: rgba(239, 233, 218, 0.68); }
-.table-scoreboard { display: flex; flex-direction: column; }
+.table-scoreboard { display: flex; flex-direction: column; align-items: flex-start; width: 96px; }
 .score-stacks { display: flex; align-items: flex-end; gap: 8px; }
 .score-card-stack { position: relative; width: 30px; height: 42px; }
 .score-card-ghost {
@@ -388,51 +386,104 @@ button:focus-visible, select:focus-visible, a:focus-visible, [role="switch"]:foc
   background: var(--ivory); color: var(--ink);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
-.score-card-pip { font-size: 8px; line-height: 1; }
-.score-card strong { font-size: 14px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
-.score-card-stack.is-positive .score-card strong { color: #2d6a45; }
-.score-card-stack.is-negative .score-card strong { color: #a13c3c; }
+.score-card-pip { position: absolute; top: 3px; left: 4px; font-size: 9px; line-height: 1; }
+.score-card-pip.is-red { color: #a94040; }
+.score-card-pip.is-black { color: #1c211b; }
+.score-card strong { font-size: 14px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; color: var(--ink); }
 .score-team-labels { display: grid; grid-template-columns: 30px 8px 30px; gap: 8px; margin-top: 3px; text-align: center; }
 .score-team-labels span { font-size: 9px; color: rgba(239, 233, 218, 0.8); }
 .score-vs { display: grid; place-items: center; font-size: 10px; color: rgba(239, 233, 218, 0.4); }
 
-.felt-contract { width: min(210px, 28%); }
-.felt-contract-body { display: flex; align-items: center; }
-.contract-meter-track { width: 100%; height: 3px; border-radius: 99px; overflow: hidden; background: rgba(239, 233, 218, 0.16); }
-.contract-meter-track i { display: block; height: 100%; border-radius: inherit; background: var(--brass); }
-.felt-contract.is-opponent .contract-meter-track i { background: #cf8d74; }
-.felt-contract-caption { margin-top: 3px; font-size: 9.5px; color: rgba(239, 233, 218, 0.68); font-variant-numeric: tabular-nums; }
+.contract-progress { width: 100%; max-width: 460px; min-width: 0; justify-self: center; }
+.contract-progress-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; color: rgba(239, 233, 218, 0.7); font-size: 9.5px; }
+.contract-progress-title b { color: var(--ivory); font-weight: 500; font-variant-numeric: tabular-nums; }
+.contract-progress-need { display: none; }
+.contract-progress-teams { display: flex; align-items: baseline; gap: 5px; font-variant-numeric: tabular-nums; }
+.contract-progress-teams b { font-weight: 500; }
+.contract-progress-teams .is-bid { color: var(--brass-soft); }
+.contract-progress-teams .is-def { color: #d7a394; }
+.contract-progress-teams i { font-style: normal; color: rgba(239, 233, 218, 0.38); }
+.contract-progress-track {
+  position: relative; height: 7px;
+  border-radius: 99px;
+  background-color: rgba(8, 18, 12, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(239, 233, 218, 0.1);
+}
+.contract-progress-track::after {
+  content: ''; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none;
+  background-image: linear-gradient(90deg, rgba(239, 233, 218, 0.16) 0 1px, transparent 1px);
+  background-size: calc(100% / var(--steps, 28)) 100%;
+}
+.contract-progress-fill { position: absolute; top: 0; bottom: 0; z-index: 1; }
+.contract-progress-fill.is-bid { left: 0; border-radius: 99px 0 0 99px; background: linear-gradient(90deg, rgba(199, 168, 106, 0.5), var(--brass)); }
+.contract-progress-fill.is-def { right: 0; border-radius: 0 99px 99px 0; background: linear-gradient(270deg, rgba(207, 141, 116, 0.45), #c98a76); }
+.contract-progress.is-made .contract-progress-fill.is-bid { background: linear-gradient(90deg, rgba(143, 191, 154, 0.5), var(--green)); }
+.contract-progress-target {
+  position: absolute; top: -5px; bottom: -5px; z-index: 3; width: 1px;
+  background: rgba(239, 233, 218, 0.9);
+  transform: translateX(-0.5px);
+}
+.contract-progress-target i {
+  position: absolute; top: -1px; left: 50%; width: 5px; height: 5px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--ivory);
+}
+.contract-progress-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 4px; color: rgba(239, 233, 218, 0.6); font-size: 9px; font-variant-numeric: tabular-nums; }
+.contract-progress.is-made .contract-progress-foot span:first-child { color: #a9cfae; }
 
-.trump-stash { display: flex; flex-direction: column; align-items: center; width: 62px; }
-.trump-stash-card { width: 32px; height: 44px; border-radius: 4px; overflow: hidden; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); }
+.trump-stash { display: flex; flex-direction: column; align-items: flex-end; width: 96px; }
+.trump-stash-card { width: 34px; height: 46px; border-radius: 4px; overflow: hidden; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); }
 .stash-face {
   position: relative; width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
   border: 1px solid rgba(0, 0, 0, 0.2); background: var(--ivory);
 }
-.stash-face strong { display: inline-flex; align-items: center; font-size: 18px; line-height: 1; }
+.stash-face strong { display: inline-flex; align-items: center; font-size: 19px; line-height: 1; }
 .stash-two { margin-right: 1px; font-style: normal; font-size: 12px; font-weight: 600; }
 .stash-red { color: var(--card-red); }
 .stash-black { color: var(--card-ink); }
 .stash-index { position: absolute; top: 3px; left: 4px; font-size: 6.5px; font-weight: 600; opacity: 0.5; }
 .stash-index-bottom { top: auto; left: auto; right: 4px; bottom: 3px; transform: rotate(180deg); }
 .stash-back {
+  position: relative;
   width: 100%; height: 100%;
   display: grid; place-items: center;
-  border: 1px solid rgba(199, 168, 106, 0.35); background: #173f2d;
+  border: 1px solid rgba(199, 168, 106, 0.4);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(199, 168, 106, 0.14), transparent 58%),
+    repeating-linear-gradient(45deg, rgba(199, 168, 106, 0.15) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(-45deg, rgba(199, 168, 106, 0.15) 0 1px, transparent 1px 4px),
+    #143a2a;
+}
+.stash-back::before { content: ''; position: absolute; inset: 3px; border: 1px solid rgba(199, 168, 106, 0.32); border-radius: 2px; }
+.stash-back::after { content: ''; position: absolute; inset: 6px; border: 1px solid rgba(239, 233, 218, 0.08); border-radius: 1px; }
+.stash-back-pattern {
+  position: relative; z-index: 1;
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  border: 1px solid rgba(199, 168, 106, 0.55); border-radius: 50%;
+  background: #173f2d;
+  box-shadow: 0 0 0 2px rgba(23, 63, 45, 0.82);
 }
 .stash-back-pattern span {
-  padding: 1px 3px;
-  border: 1px solid rgba(199, 168, 106, 0.35); border-radius: 2px;
-  color: var(--brass-soft); font-size: 8px; font-weight: 600; letter-spacing: 0.04em;
+  color: var(--brass-soft); font-family: 'Newsreader Variable', 'Newsreader', Georgia, serif;
+  font-size: 8px; line-height: 1;
 }
 .stash-flipped { animation: stash-flip 500ms var(--ease); }
 .trump-stash-caption {
-  max-width: 72px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 9px; color: rgba(239, 233, 218, 0.68);
+  max-width: 96px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 9px; color: rgba(239, 233, 218, 0.68); text-align: right;
 }
 .trump-stash.is-revealed .trump-stash-caption { color: rgba(239, 233, 218, 0.8); }
 .trump-stash.is-reverse .table-object-label, .trump-stash.is-reverse .trump-stash-caption { color: var(--brass-soft); }
+.trump-stash.is-actionable {
+  padding: 0; border: 0; background: none; color: inherit; font: inherit;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.trump-stash.is-actionable .trump-stash-card { outline: 1px solid rgba(199, 168, 106, 0.45); outline-offset: 3px; transition: transform 140ms var(--ease), outline-color 140ms var(--ease); }
+.trump-stash.is-actionable:hover .trump-stash-card { transform: translateY(-2px); outline-color: rgba(223, 201, 155, 0.8); }
+.trump-stash.is-actionable .trump-stash-caption { color: var(--brass-soft); }
+.trump-stash.is-actionable:focus-visible { outline: 2px solid var(--brass-soft); outline-offset: 4px; border-radius: 6px; }
 
 /* Announcement plaque */
 .table-announce {
@@ -617,6 +668,24 @@ button:focus-visible, select:focus-visible, a:focus-visible, [role="switch"]:foc
 .seventh-choice small { display: block; margin-top: 2px; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
 .reverse-choice { border-color: rgba(199, 168, 106, 0.28); }
 .reverse-choice-icon { color: var(--brass-soft); font-size: 12px; font-weight: 600; }
+.reverse-trump-choice {
+  margin-top: 8px; padding: 12px;
+  border: 1px solid rgba(199, 168, 106, 0.22); border-radius: 9px;
+  background: rgba(199, 168, 106, 0.035);
+}
+.reverse-trump-head span { display: block; color: var(--text); font-size: 12.5px; font-weight: 500; }
+.reverse-trump-head small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+.reverse-trump-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 9px; }
+.reverse-trump-suit {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: 36px; padding: 0 8px;
+  border: 1px solid var(--line-strong); border-radius: 6px;
+  background: var(--surface-2); color: var(--soft);
+  font-size: 11.5px; transition: background 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease);
+}
+.reverse-trump-suit:hover { border-color: rgba(199, 168, 106, 0.4); background: var(--surface-3); color: var(--text); }
+.reverse-trump-symbol { font-size: 15px; line-height: 1; }
+.reverse-trump-suit svg { color: var(--quiet); }
 
 .decision-dock {
   padding: 16px 20px;
@@ -1218,8 +1287,8 @@ select:disabled { opacity: 0.45; }
   .topbar-actions { grid-column: 2; grid-row: 1; }
   .match-strip { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; }
   .brand-text > div { font-size: 21px; }
-  .felt-table { height: 460px; }
-  .felt-table.is-bidding { height: 400px; }
+  .felt-table { height: 420px; }
+  .felt-table.is-bidding { height: 370px; }
   .felt-table.has-trick-cards .table-center { display: none; }
   .trick-slot { display: none; }
   .review-screen { padding: 24px; }
@@ -1233,12 +1302,12 @@ select:disabled { opacity: 0.45; }
   .game-notes { padding: 14px; }
   .game-notes-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .game-notes .rail-split { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
-  .felt-table { height: 430px; }
-  .felt-table.is-bidding { height: 390px; }
+  .felt-table { height: 400px; }
+  .felt-table.is-bidding { height: 370px; }
   .table-center { width: 58%; }
   .table-center.is-bidding { width: 84%; }
-  .felt-bottom { left: 14px; right: 14px; bottom: 12px; gap: 10px; }
-  .felt-contract { width: 30%; }
+  .felt-bottom { left: 14px; right: 14px; bottom: 12px; gap: 12px; grid-template-columns: 84px minmax(0, 1fr) 84px; }
+  .table-scoreboard, .trump-stash { width: 84px; }
   .review-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .review-stat:nth-child(2) { border-right: 0; }
   .review-stat:nth-child(-n + 2) { border-bottom: 1px solid #ded5c3; }
@@ -1260,8 +1329,8 @@ select:disabled { opacity: 0.45; }
   .top-action { width: 36px; padding: 0; }
   .coach-switch { width: 36px; }
   .coach-dot { right: 6px; top: 6px; }
-  .felt-table { height: 400px; }
-  .felt-table.is-bidding { height: 390px; }
+  .felt-table { height: 380px; }
+  .felt-table.is-bidding { height: 360px; }
   .felt-table.has-trick-cards .table-center { display: none; }
   .table-fact { top: 14px; }
   .fact-tl { left: 16px; }
@@ -1282,17 +1351,36 @@ select:disabled { opacity: 0.45; }
   .center-title { font-size: 17px; }
   .center-subtitle { font-size: 10.5px; }
   .table-message { max-width: 240px; font-size: 10px; }
-  .felt-bottom { left: 10px; right: 10px; bottom: 10px; gap: 8px; }
-  .felt-contract { width: 28%; min-width: 80px; }
+  .felt-bottom {
+    left: 10px; right: 10px; bottom: 10px; row-gap: 8px; column-gap: 10px;
+    grid-template-columns: auto auto;
+    grid-template-areas: "bar bar" "score trump";
+    justify-content: space-between;
+  }
+  .table-scoreboard { grid-area: score; width: 74px; }
+  .contract-progress { grid-area: bar; max-width: none; }
+  .trump-stash { grid-area: trump; width: 74px; }
+  .played-south { top: 58%; }
+  .played-north { top: 22%; }
+  .played-west { left: 38%; top: 40%; }
+  .played-east { left: 62%; top: 40%; }
+  .contract-progress-foot { display: none; }
+  .contract-progress-need { display: inline; margin-left: 6px; color: rgba(239, 233, 218, 0.62); font-style: normal; font-size: 8.5px; }
+  .felt-table.is-bidding .felt-bottom {
+    grid-template-columns: 74px minmax(0, 1fr) 74px;
+    grid-template-areas: "score bar trump";
+  }
+  .felt-table.is-bidding .contract-progress { display: none; }
+  .contract-progress-head { font-size: 9px; }
   .score-card-stack { width: 26px; height: 36px; }
   .score-team-labels { grid-template-columns: 26px 6px 26px; gap: 6px; }
-  .trump-stash { width: 54px; }
-  .trump-stash-card { width: 28px; height: 39px; }
+  .trump-stash-card { width: 30px; height: 41px; }
   .auction-seat { padding: 6px 5px; }
   .auction-seat span { font-size: 8.5px; }
   .auction-seat strong { font-size: 12px; }
   .bid-step { width: 20px; height: 18px; font-size: 8.5px; }
   .suit-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reverse-trump-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .decision-dock { padding: 14px; }
   .trump-chooser { padding: 16px; }
   .trick-result, .stake-panel { padding: 14px; }
@@ -1308,6 +1396,7 @@ select:disabled { opacity: 0.45; }
   .bid-select-wrap { flex: 1; min-width: 0; }
   .bid-select-wrap select { width: 100%; }
   .bid-controls .button-primary, .bid-controls .button-secondary { min-height: 44px; }
+  .reverse-trump-suit { min-height: 44px; }
   .review-screen { padding: 18px; border-radius: 12px; }
   .review-topline h2 { font-size: 32px; }
   .review-stat { padding: 12px; }
@@ -1337,14 +1426,14 @@ select:disabled { opacity: 0.45; }
 
 @media (max-width: 420px) {
   .brand-text > div { font-size: 19px; }
-  .brand-mark { width: 30px; height: 34px; font-size: 11px; }
+  .brand-mark { width: 30px; height: 35px; }
   .match-tile { padding: 5px 8px; gap: 5px; }
   .tile-copy small { display: none; }
   .team-score { gap: 4px; }
   .team-token { width: 20px; height: 20px; }
   .team-copy strong { font-size: 13px; }
-  .felt-table { height: 380px; }
-  .felt-table.is-bidding { height: 380px; }
+  .felt-table { height: 360px; }
+  .felt-table.is-bidding { height: 350px; }
   .bid-ladder { display: none; }
   .played-card .playing-card.card-compact { width: 43px; height: 60px; }
   .played-west, .trick-slot-west { left: 42%; }
@@ -1355,7 +1444,19 @@ select:disabled { opacity: 0.45; }
   .center-logo { font-size: 20px; }
   .center-title { font-size: 16px; }
   .center-subtitle { font-size: 10px; }
-  .felt-contract { display: none; }
+  .felt-bottom { grid-template-columns: auto auto; column-gap: 8px; bottom: 9px; left: 9px; right: 9px; }
+  .table-scoreboard, .trump-stash { width: 64px; }
+  .felt-table.is-bidding .felt-bottom { grid-template-columns: 64px minmax(0, 1fr) 64px; }
+  .score-card-stack { width: 24px; height: 34px; }
+  .score-team-labels { grid-template-columns: 24px 5px 24px; gap: 5px; }
+  .score-team-labels span { font-size: 8.5px; }
+  .score-card strong { font-size: 13px; }
+  .trump-stash { align-items: flex-end; }
+  .trump-stash-card { width: 27px; height: 37px; }
+  .trump-stash-caption { font-size: 8.5px; }
+  .contract-progress-head { font-size: 8.5px; gap: 5px; }
+  .contract-progress-foot { font-size: 8.5px; }
+  .contract-progress-foot span:last-child { display: none; }
   .dock-title h2 { font-size: 13px; }
   .coach-insight-title { font-size: 14px; }
   .review-screen { padding: 14px; }

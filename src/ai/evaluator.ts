@@ -247,7 +247,7 @@ function openingFourCombinations(cards: Card[]): Card[][] {
 }
 
 function sampledTrump(state: GameState, hands: Card[][], player: number, random: () => number): TrumpBelief | null {
-  if (state.reverse) return { suit: null }
+  if (state.reverse && !state.trumpSuit) return { suit: null }
   if (state.bidder === player) return state.trumpSuit ? { suit: state.trumpSuit } : null
   if (state.bidder === null || state.highBid === null) return null
 
@@ -415,13 +415,15 @@ export function evaluateMoves(
 
   const best = options[0]
   const runnerUp = options[1]
-  const unknownTrumpModeled = !state.reverse && !state.trumpRevealed && state.bidder !== player
+  const unknownTrumpModeled = !state.trumpRevealed && state.bidder !== player && (!state.reverse || !!state.trumpSuit)
   const notes = [
     `Each move was evaluated over ${worlds.length} plausible unseen deals using the same sampled deals for fair comparison.`,
     'The evaluator uses your hand, public cards, inferred voids and remaining-card counts—not the opponents’ actual hidden hands.',
   ]
   if (state.bidder !== player) notes.push('Sampled deals are weighted against the visible auction using the bot’s simplified bidding thresholds; real human bidding can differ.')
-  if (state.reverse) notes.push('This is a reverse contract: no trump, and the ranking flips (7 high, J low) once the 2 indicator is revealed.')
+  if (state.reverse) notes.push(state.trumpSuit
+    ? 'This is a reverse contract: the ranking flips (7 high, J low) when the contract is revealed, and the named suit still beats other suits.'
+    : 'This is a reverse contract: no trump, and the ranking flips (7 high, J low) once the 2 indicator is revealed.')
   if (unknownTrumpModeled) notes.push('Trump is still hidden, so its suit is sampled from plausible opening four-card hands for the bidder. Results are approximate.')
   if (state.trumpRevealed && !state.seventhCard && 8 - state.tricks.length <= 4) {
     notes.push('With four or fewer tricks left, each sampled deal is solved exactly by double-dummy search instead of a heuristic rollout.')
