@@ -8,7 +8,7 @@ import {
   applyBid, botBid, botDoubleDecision, botRedoubleDecision, cardText,
   chooseBotCard, chooseBotTrump, chooseReverse, chooseReverseTrump, chooseSeventhCard, chooseTrump, continueAfterAuction,
   continueAfterTrick, contractTarget, declarePair, DEFAULT_RULES, isRedSuit, legalCardsFor,
-  maxBidFor, newHand, openingReport, pairEligible, playCard, PLAYER_NAMES, PLAYER_POSITIONS,
+  maxBidFor, needsTrumpReveal, newHand, openingReport, pairEligible, playCard, PLAYER_NAMES, PLAYER_POSITIONS,
   resolveStake, revealHiddenContract, SUITS, SUIT_LABEL, SUIT_SYMBOL, teamOf, type Card, type GameState, type RuleSet,
   type Suit,
 } from './game'
@@ -748,14 +748,20 @@ export default function App() {
     } else if (game.phase === 'play' && !game.pausedTrick && game.currentPlayer !== 0) {
       const player = game.currentPlayer
       const version = game.version
-      // Search inside the timer so StrictMode's development double-effect does not run the
-      // evaluator twice, and so the table stays responsive while the bot is "thinking".
-      timer = window.setTimeout(() => {
-        const card = preferences.searchBots
-          ? chooseBotCardWithSearch(game, player, { samples: preferences.botSamples })
-          : chooseBotCard(game, player)
-        setGame(current => current.version === version ? playCard(current, player, card.id) : current)
-      }, 520 + Math.random() * 280)
+      if (needsTrumpReveal(game, player)) {
+        // Expose the contract before the bot chooses. The next effect run sees the public
+        // trump and can pick a trump if the rule requires one.
+        timer = window.setTimeout(() => setGame(current => current.version === version ? revealHiddenContract(current, player) : current), 460)
+      } else {
+        // Search inside the timer so StrictMode's development double-effect does not run the
+        // evaluator twice, and so the table stays responsive while the bot is "thinking".
+        timer = window.setTimeout(() => {
+          const card = preferences.searchBots
+            ? chooseBotCardWithSearch(game, player, { samples: preferences.botSamples })
+            : chooseBotCard(game, player)
+          setGame(current => current.version === version ? playCard(current, player, card.id) : current)
+        }, 520 + Math.random() * 280)
+      }
     }
     return () => { if (timer !== undefined) window.clearTimeout(timer) }
   }, [game, resumePrompt])
@@ -778,23 +784,19 @@ export default function App() {
   const userStakeTurn = game.phase === 'stake' && game.stakeStage !== null && game.bidder !== null && (
     game.stakeStage === 'defend' ? teamOf(0) !== teamOf(game.bidder) : teamOf(0) === teamOf(game.bidder)
   )
-  const currentLegal = useMemo(() => userCanPlay ? legalCardsFor(game, 0).map(card => card.id) : [], [game, userCanPlay])
-  const ledSuit = game.currentTrick[0]?.card.suit ?? null
-  const userFollowCards = useMemo(() => {
-    const hand = game.hands[0] ?? []
-    return game.bidder === 0 && game.seventhCard && !game.trumpRevealed ? [...hand, game.seventhCard] : hand
-  }, [game.hands, game.bidder, game.seventhCard, game.trumpRevealed])
-  const userCanReveal = userCanPlay && !game.trumpRevealed && !!ledSuit && !userFollowCards.some(card => card.suit === ledSuit) && (game.reverse || !!game.trumpSuit)
+  const mustRevealFirst = userCanPlay && needsTrumpReveal(game, 0)
+  const userCanReveal = mustRevealFirst
+  const currentLegal = useMemo(() => userCanPlay && !mustRevealFirst ? legalCardsFor(game, 0).map(card => card.id) : [], [game, userCanPlay, mustRevealFirst])
   // Start the sampled comparison automatically on the human's turn so the live tip can
   // become a hybrid verdict without waiting for a button press.
   useEffect(() => {
     if (resumePrompt) return
-    if (!preferences.coach || !userCanPlay || !evaluatorWorker.current) return
+    if (!preferences.coach || !userCanPlay || mustRevealFirst || !evaluatorWorker.current) return
     const key = `${game.handId}:${game.version}:${preferences.compareSamples}`
     if (autoAnalysisKey.current === key) return
     autoAnalysisKey.current = key
     requestMoveAnalysis()
-  }, [preferences.coach, preferences.compareSamples, userCanPlay, game.handId, game.version, resumePrompt])
+  }, [preferences.coach, preferences.compareSamples, userCanPlay, mustRevealFirst, game.handId, game.version, resumePrompt])
   // The detailed comparison is an on-demand study panel; a new decision hides it.
   useEffect(() => { setShowMovePanel(false) }, [game.handId, game.version])
   const currentTrickPoints = game.currentTrick.reduce((sum, item) => sum + item.card.points, 0)
@@ -1263,11 +1265,13 @@ export default function App() {
           <section className={`decision-dock ${myTurn ? 'dock-active' : ''}`} aria-label="Your decision">
             <div className="dock-head">
               <div className="dock-title"><Hand size={18} aria-hidden="true" /><h2>Your hand</h2><span className="dock-count">{sortedHand.length} cards</span></div>
-              {preferences.coach && userCanPlay && <div className="dock-actions"><button className="button-quiet" onClick={askForHint}><Lightbulb size={15} aria-hidden="true" /> Hint</button><button className="button-secondary" onClick={() => requestMoveAnalysis(true)} disabled={analysisLoading === 'moves'} aria-live="polite">{analysisLoading === 'moves' ? <><Activity size={14} className="analysis-spin" aria-hidden="true" /> Analyzing</> : <><Target size={14} aria-hidden="true" /> Compare</>}</button></div>}
+              {preferences.coach && userCanPlay && !mustRevealFirst && <div className="dock-actions"><button className="button-quiet" onClick={askForHint}><Lightbulb size={15} aria-hidden="true" /> Hint</button><button className="button-secondary" onClick={() => requestMoveAnalysis(true)} disabled={analysisLoading === 'moves'} aria-live="polite">{analysisLoading === 'moves' ? <><Activity size={14} className="analysis-spin" aria-hidden="true" /> Analyzing</> : <><Target size={14} aria-hidden="true" /> Compare</>}</button></div>}
             </div>
             {game.pausedTrick
               ? <p className="dock-help">The completed trick is above. Continue when you are ready.</p>
-              : game.auctionComplete
+              : mustRevealFirst
+                ? <p className="dock-help">You are void in the led suit. Tap the hidden contract to reveal it; if you hold a trump, you must play one this trick.</p>
+                : game.auctionComplete
                 ? <p className="dock-help">The auction is over. Continue above to choose the contract.</p>
                 : game.phase === 'trump'
                   ? <p className="dock-help">Your opening four.</p>

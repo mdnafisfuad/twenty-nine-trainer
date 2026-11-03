@@ -138,6 +138,7 @@ export function stateFromDecision(decision: DecisionRecord): GameState {
     auctionComplete: false,
     trumpSuit: decision.knownTrumpSuit,
     trumpRevealed: decision.trumpRevealed,
+    mustTrump: decision.mustTrump ?? null,
     reverse: decision.knownReverse,
     indicatorSuit: decision.knownReverse ? decision.indicatorSuit : null,
     seventhCard: decision.seventhCard ? { ...decision.seventhCard } : null,

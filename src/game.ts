@@ -78,6 +78,8 @@ export interface DecisionRecord {
   knownReverse: boolean
   indicatorSuit: Suit | null
   trumpRevealed: boolean
+  /** Set when this player exposed the hidden contract; they must trump this trick if able. */
+  mustTrump: number | null
   player: number
   bidder: number | null
   highBid: number | null
@@ -154,6 +156,8 @@ export interface GameState {
   auctionComplete: boolean
   trumpSuit: Suit | null
   trumpRevealed: boolean
+  /** The player who exposed the hidden contract this trick; they must play trump if able. */
+  mustTrump: number | null
   /** Ranking-flip contract; with no trump suit this is a no-trump reverse. */
   reverse: boolean
   /** Display suit of the 2-card reverse indicator for a no-trump reverse. It has no effect on play. */
@@ -253,6 +257,7 @@ export function newHand(
     auctionComplete: false,
     trumpSuit: null,
     trumpRevealed: false,
+    mustTrump: null,
     reverse: false,
     indicatorSuit: null,
     seventhCard: null,
@@ -499,6 +504,7 @@ function startPlay(
     auctionComplete: false,
     trumpSuit,
     trumpRevealed: false,
+    mustTrump: null,
     reverse,
     indicatorSuit,
     seventhCard,
@@ -703,18 +709,46 @@ export function legalCards(hand: Card[], trick: PlayedCard[]): Card[] {
 }
 
 /**
+ * True when the player is void in the led suit and the hidden contract is still face down.
+ * The reveal is public and must happen before the player chooses a discard.
+ */
+export function needsTrumpReveal(state: GameState, player: number): boolean {
+  if (state.phase !== 'play' || state.pausedTrick || state.trumpRevealed) return false
+  if (!state.reverse && !state.trumpSuit) return false
+  const ledSuit = state.currentTrick[0]?.card.suit
+  if (!ledSuit) return false
+  return !(state.hands[player] ?? []).some(card => card.suit === ledSuit)
+}
+
+/**
  * Legal cards including the bidder's set-aside seventh card. It may not be led unless it is the
  * bidder's last card, and may only be played when the bidder cannot follow from the hand.
+ * After exposing the hidden contract, the revealer must play a trump if one is available.
  */
 export function legalCardsFor(state: GameState, player: number): Card[] {
   const hand = state.hands[player] ?? []
-  const base = legalCards(hand, state.currentTrick)
+  const trick = state.currentTrick
+  const base = legalCards(hand, trick)
   const seventh = state.seventhCard
-  if (!seventh || state.trumpRevealed || state.bidder !== player) return base
-  if (state.currentTrick.length === 0) return hand.length === 0 ? [seventh] : base
-  const ledSuit = state.currentTrick[0].card.suit
-  const canFollow = hand.some(card => card.suit === ledSuit)
-  return canFollow ? base : [...base, seventh]
+  let cards = base
+  if (seventh && !state.trumpRevealed && state.bidder === player) {
+    if (trick.length === 0) {
+      cards = hand.length === 0 ? [seventh] : base
+    } else {
+      const ledSuit = trick[0].card.suit
+      const canFollow = hand.some(card => card.suit === ledSuit)
+      cards = canFollow ? base : [...base, seventh]
+    }
+  }
+  if (state.mustTrump === player && state.trumpSuit && trick.length > 0) {
+    const ledSuit = trick[0].card.suit
+    const canFollow = hand.some(card => card.suit === ledSuit)
+    if (!canFollow) {
+      const trumps = cards.filter(card => card.suit === state.trumpSuit)
+      if (trumps.length) return trumps
+    }
+  }
+  return cards
 }
 
 /** Reverse swaps the ranking: 7 becomes high and J low. Point values never change. */
@@ -1030,18 +1064,13 @@ function buildBidReview(records: BidRecord[], reverse = false): BidReview | null
 }
 
 /**
- * The player who is void in the led suit may flip the hidden contract before choosing a card.
- * This is the same reveal that would happen when they play off-suit, but it lets the table
- * read the trump and the new ranking first.
+ * The player who is void in the led suit exposes the hidden contract before choosing a card.
+ * The reveal is public; that player must then play a trump this trick if one is available.
  */
 export function revealHiddenContract(state: GameState, player: number): GameState {
   if (state.phase !== 'play' || state.pausedTrick || state.trumpRevealed || state.currentPlayer !== player) return state
   const ledSuit = state.currentTrick[0]?.card.suit
-  if (!ledSuit) return state
-  const hand = state.hands[player] ?? []
-  const followCards = state.bidder === player && state.seventhCard ? [...hand, state.seventhCard] : hand
-  if (followCards.some(card => card.suit === ledSuit)) return state
-  if (!state.reverse && !state.trumpSuit) return state
+  if (!ledSuit || !needsTrumpReveal(state, player)) return state
 
   let hands = state.hands
   if (state.seventhCard && state.bidder !== null) {
@@ -1049,21 +1078,29 @@ export function revealHiddenContract(state: GameState, player: number): GameStat
   }
   const reverseWithTrump = state.reverse && !!state.trumpSuit
   const leadLabel = SUIT_LABEL[ledSuit]
-  const logEntry = state.reverse
+  const trumpHeld = !!state.trumpSuit && hands[player].some(card => card.suit === state.trumpSuit)
+  const obligation = trumpHeld
+    ? player === 0
+      ? ' You must play a trump this trick.'
+      : ` ${PLAYER_NAMES[player]} must play a trump this trick.`
+    : ''
+  const logEntry = (state.reverse
     ? reverseWithTrump
       ? `${act(player, 'cannot follow', 'cannot follow')} ${leadLabel}—trump is revealed: ${SUIT_LABEL[state.trumpSuit!]} with the reverse ranking (7 high, J low).`
       : `${act(player, 'cannot follow', 'cannot follow')} ${leadLabel}—reverse revealed: 7 is high, J is low.`
-    : `${act(player, 'cannot follow', 'cannot follow')} ${leadLabel}—trump is revealed: ${SUIT_LABEL[state.trumpSuit!]}.`
+    : `${act(player, 'cannot follow', 'cannot follow')} ${leadLabel}—trump is revealed: ${SUIT_LABEL[state.trumpSuit!]}.`) + obligation
+  const revealMessage = state.reverse
+    ? reverseWithTrump
+      ? `Reverse revealed: ${SUIT_LABEL[state.trumpSuit!]} is trump—7 is high and J is low.`
+      : 'Reverse revealed: no trump—7 is high and J is low.'
+    : `Trump revealed: ${SUIT_LABEL[state.trumpSuit!]} can now beat other suits.`
   return withVersion(state, {
     hands,
     trumpRevealed: true,
+    mustTrump: player,
     seventhCard: null,
     log: [...state.log, logEntry].slice(-32),
-    message: state.reverse
-      ? reverseWithTrump
-        ? `Reverse revealed: ${SUIT_LABEL[state.trumpSuit!]} is trump—7 is high and J is low.`
-        : 'Reverse revealed: no trump—7 is high and J is low.'
-      : `Trump revealed: ${SUIT_LABEL[state.trumpSuit!]} can now beat other suits.`,
+    message: `${revealMessage}${obligation}`,
   })
 }
 
@@ -1078,6 +1115,13 @@ export function playCard(state: GameState, player: number, cardId: string): Game
   const wasRevealed = state.trumpRevealed
   const ledSuit = trickBefore[0]?.card.suit
   const voidInLedSuit = !!ledSuit && !handBefore.some(c => c.suit === ledSuit)
+  const hiddenSeventhTrump = state.bidder === player && !!state.seventhCard && state.seventhCard.suit === state.trumpSuit
+  const hiddenTrumpHeld = !!state.trumpSuit && (handBefore.some(c => c.suit === state.trumpSuit) || hiddenSeventhTrump)
+  // A player who exposes the hidden contract must trump this trick when able. Reveal first;
+  // the card choice happens on the next step, with only the available trumps playable.
+  if (!wasRevealed && !isSeventhPlay && voidInLedSuit && hiddenTrumpHeld && card.suit !== state.trumpSuit) {
+    return revealHiddenContract(state, player)
+  }
   const revealsNow = !wasRevealed && (voidInLedSuit || isSeventhPlay)
   const trumpRevealed = wasRevealed || revealsNow
   const nextHand = isSeventhPlay ? handBefore : handBefore.filter(c => c.id !== card.id)
@@ -1099,6 +1143,7 @@ export function playCard(state: GameState, player: number, cardId: string): Game
     knownReverse: state.reverse && (wasRevealed || state.bidder === player),
     indicatorSuit: state.indicatorSuit,
     trumpRevealed: wasRevealed,
+    mustTrump: state.mustTrump,
     player,
     bidder: state.bidder,
     highBid: state.highBid,
@@ -1122,6 +1167,7 @@ export function playCard(state: GameState, player: number, cardId: string): Game
     hands,
     currentTrick,
     trumpRevealed,
+    mustTrump: state.mustTrump === player ? null : state.mustTrump,
     seventhCard: revealsNow ? null : state.seventhCard,
     decisions,
     log: [...state.log, logEntry].slice(-32),

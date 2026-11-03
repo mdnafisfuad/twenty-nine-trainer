@@ -26,7 +26,7 @@ Browser only: no account, backend, or API key. One session covers the deal, auct
 
 - Four players in fixed partnerships; the human is South.
 - Simplified classic auction: J > 9 > A > 10 > K > Q > 8 > 7; J = 3, 9 = 2, A/10 = 1; minimum bid 16.
-- Four-card opening deal, auction, trump chosen from the opening four (or the seventh-card option), second deal, and a hidden trump revealed on the first void.
+- Four-card opening deal, auction, trump chosen from the opening four (or the seventh-card option), second deal, and a hidden trump revealed on the first void. The player who exposes the contract must play a trump in that trick if one is available; no-trump Reverse has no trump obligation.
 - Optional royal pair (K+Q of trump), seventh-card trump, reverse (no-trump ranking flip), reverse with trump, double/redouble, and last-trick bonus; each can be switched off in Practice settings.
 - The completed auction pauses with a Continue button before the declarer chooses the contract.
 - Every completed trick pauses on the table until the player continues, so the four cards can be read before the next lead.

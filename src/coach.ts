@@ -466,20 +466,28 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
         : 'No trump: playing off-suit exposes the 2 and flips the ranking.')
   }
   if (seventhLine) bullets.push(seventhLine)
+  if (state.mustTrump === player && state.trumpSuit) {
+    bullets.push('You exposed the contract, so the rules require a trump from you this trick if you hold one.')
+  }
 
-  // Unknown mode plus a void hand: the winner cannot be known when choosing.
-  if (!canFollow && !state.trumpRevealed && !knowsMode) {
-    const lowest = [...legal].sort((a, b) => a.points - b.points || a.strength - b.strength)[0]
-    bullets.push('Any off-suit card you play reveals the trump suit from this trick onward. Until then, the rank of your card is not what decides the trick.')
+  // The hidden contract must be exposed before a void player can discard.
+  if (!canFollow && !state.trumpRevealed) {
+    const hasTrump = !!state.trumpSuit
+    bullets.push(hasTrump
+      ? 'The reveal is public: the trump suit applies from this trick onward, and the revealer must play a trump if able.'
+      : 'The reveal is public: the reverse ranking starts with this trick, and there is no trump to play.')
     if (line) bullets.push(line)
     return {
-      tag, tone: 'warn', confidence: 'estimate',
-      title: `You are void in ${SUIT_LABEL[ledSuit]}`,
-      summary: 'Playing off-suit forces the trump reveal. You cannot know yet whether that helps or hurts, so spend the least valuable card.',
-      plan: 'Spend the cheapest off-suit card. The trump suit is still hidden, so the rank of your card cannot secure this trick.',
+      tag, tone: 'warn', confidence: 'certain',
+      title: hasTrump
+        ? state.reverse ? 'Reveal the hidden reverse trump' : 'Reveal the hidden trump first'
+        : 'Reveal the hidden reverse first',
+      summary: 'You are void in the led suit. The face-down contract must be exposed before you choose a card.',
+      plan: hasTrump
+        ? 'Tap the hidden contract to reveal it, then play a trump if you have one. If you have no trump, discard your cheapest card.'
+        : 'Tap the hidden contract to reveal it, then discard your cheapest card. There is no trump suit to play.',
       bullets,
-      action: `Play ${cardText(lowest)} (lowest risk)`,
-      recommendedCardId: lowest.id,
+      action: 'Reveal the contract',
     }
   }
 

@@ -66,12 +66,13 @@
 **The game**
 - The full flow: four-card opening deal, auction, trump selection, second deal, hidden trump, follow-suit play, eight tricks, and match scoring.
 - Optional rules, each switchable in **Practice settings**: royal pair, seventh-card trump, double and redouble, Reverse (no trump), Reverse with trump, and the last-trick bonus.
-- Follow-suit is enforced by the UI, so a revoke cannot happen by accident.
+- Follow-suit and the reveal obligation are enforced by the UI, so a revoke or an illegal discard cannot happen by accident.
 - Table cues: auction pauses, trick pauses, trump-reveal announcements, and a floating 29 mark at the centre.
 
 **The table**
 - A card-stack match scoreboard whose suit mark carries the sign, and a 28/29-point race with the bidding side filling from the left and the defence from the right.
 - A face-down trump card that flips when the suit is revealed. If you are void in the led suit and trump is still hidden, tap the card to reveal it before discarding.
+- Exposing the hidden contract is a commitment: the player who reveals it must play a trump in that trick if one is available.
 - Seat chips with avatars, card fans, dealer tokens, and auction wins instead of status sentences.
 - Coach tip history with previous/next arrows and a Latest jump back to live advice.
 - Interactive trick timeline, local session statistics, and layouts for phone, tablet, and desktop — down to 320px.
@@ -100,6 +101,8 @@ Card order is **J > 9 > A > 10 > K > Q > 8 > 7**. The usual opening bid is 16; t
 | Points | **3** | **2** | 1 | 1 | 0 | 0 | 0 | 0 |
 
 In Reverse, the order flips to **7 high and J low**; point values stay the same.
+
+If you expose the hidden contract while void, you must play a trump in that trick if you hold one. The rule applies to normal trump and Reverse with trump; a no-trump Reverse has no such obligation.
 
 <table>
   <tr>

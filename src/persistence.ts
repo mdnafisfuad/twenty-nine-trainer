@@ -141,6 +141,7 @@ function readGame(value: unknown): GameState | null {
     initialHands,
     rules: readRules(value.rules),
     trumpSuit,
+    mustTrump: typeof value.mustTrump === 'number' && value.mustTrump >= 0 && value.mustTrump < 4 ? value.mustTrump : null,
     indicatorSuit,
     review,
     log: Array.isArray(value.log) ? value.log.filter((line): line is string => typeof line === 'string') : [],
