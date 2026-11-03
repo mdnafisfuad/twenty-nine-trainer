@@ -1,10 +1,12 @@
 import {
   bidCeiling,
+  botShouldReveal,
   chooseBotCard,
   chooseBotTrump,
   continueAfterTrick,
   legalCardsFor,
   playCard,
+  revealHiddenContract,
   SUITS,
   RANKS,
   suitPower,
@@ -331,13 +333,18 @@ function evaluateOneWorld(state: GameState, player: number, candidate: Card, wor
   }
   simulation = playCard(simulation, player, candidate.id)
   let safety = 0
-  while (simulation.phase === 'play' && safety < 40) {
+  while (simulation.phase === 'play' && safety < 72) {
     if (simulation.pausedTrick) {
       simulation = continueAfterTrick(simulation)
       safety += 1
       continue
     }
     const active = simulation.currentPlayer
+    if (botShouldReveal(simulation, active)) {
+      simulation = revealHiddenContract(simulation, active)
+      safety += 1
+      continue
+    }
     const selected = chooseBotCard(simulation, active)
     if (!selected) return null
     simulation = playCard(simulation, active, selected.id)
@@ -422,6 +429,9 @@ export function evaluateMoves(
     'The evaluator uses your hand, public cards, inferred voids and remaining-card counts—not the opponents’ actual hidden hands.',
   ]
   if (state.bidder !== player) notes.push('Sampled deals are weighted against the visible auction using the bot’s simplified bidding thresholds; real human bidding can differ.')
+  const canCallContract = state.phase === 'play' && !state.trumpRevealed && state.currentTrick.length > 0 &&
+    !(state.hands[player] ?? []).some(card => card.suit === state.currentTrick[0].card.suit)
+  if (canCallContract) notes.push('You are void in the led suit. These samples compare discards that keep the contract hidden; calling for trump is a separate strategic choice.')
   if (state.reverse) notes.push(state.trumpSuit
     ? 'This is a reverse contract: the ranking flips (7 high, J low) when the contract is revealed, and the named suit still beats other suits.'
     : 'This is a reverse contract: no trump, and the ranking flips (7 high, J low) once the 2 indicator is revealed.')

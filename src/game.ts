@@ -530,7 +530,7 @@ export function chooseTrump(state: GameState, player: number, suit: Suit): GameS
     : `${PLAYER_NAMES[player]} chooses a hidden trump suit.`
   const log = [...state.log, trumpLog, 'Four more cards dealt to each player.'].slice(-28)
   return startPlay(state, hands, suit, null, log,
-    `${leadLine((state.dealer + 1) % 4)}. Trump is hidden until someone cannot follow suit.`)
+    `${leadLine((state.dealer + 1) % 4)}. Trump stays hidden until a void player calls for it.`)
 }
 
 /** The bidder calls the seventh card instead of naming a suit. */
@@ -544,7 +544,7 @@ export function chooseSeventhCard(state: GameState, player: number): GameState {
     'Four more cards dealt to each player. The seventh card is set aside.',
   ].slice(-28)
   return startPlay(state, hands, seventhCard.suit, seventhCard, log,
-    `${leadLine((state.dealer + 1) % 4)}. Trump stays hidden until the first void.`)
+    `${leadLine((state.dealer + 1) % 4)}. Trump stays hidden until a void player calls for it.`)
 }
 
 /** The 2 is only a table indicator for reverse; its suit does not become trump. */
@@ -570,7 +570,7 @@ export function chooseReverse(state: GameState, player: number): GameState {
     'Four more cards dealt to each player. The 2 indicator is set aside.',
   ].slice(-28)
   return startPlay(state, hands, null, null, log,
-    `${leadLine((state.dealer + 1) % 4)}. The contract stays hidden until the first void.`,
+    `${leadLine((state.dealer + 1) % 4)}. The contract stays hidden until a void player calls for it.`,
     true, indicatorSuit)
 }
 
@@ -587,7 +587,7 @@ export function chooseReverseTrump(state: GameState, player: number, suit: Suit)
     'Four more cards dealt to each player.',
   ].slice(-28)
   return startPlay(state, hands, suit, null, log,
-    `${leadLine((state.dealer + 1) % 4)}. Trump and the reverse ranking stay hidden until the first void.`,
+    `${leadLine((state.dealer + 1) % 4)}. Trump and the reverse ranking stay hidden until a void player calls for them.`,
     true)
 }
 
@@ -709,10 +709,10 @@ export function legalCards(hand: Card[], trick: PlayedCard[]): Card[] {
 }
 
 /**
- * True when the player is void in the led suit and the hidden contract is still face down.
- * The reveal is public and must happen before the player chooses a discard.
+ * True when the player is void in the led suit and may choose to expose the hidden contract.
+ * The reveal is optional; a player may instead discard without revealing.
  */
-export function needsTrumpReveal(state: GameState, player: number): boolean {
+export function canExposeContract(state: GameState, player: number): boolean {
   if (state.phase !== 'play' || state.pausedTrick || state.trumpRevealed) return false
   if (!state.reverse && !state.trumpSuit) return false
   const ledSuit = state.currentTrick[0]?.card.suit
@@ -870,23 +870,42 @@ function chooseLead(state: GameState, player: number, hand: Card[], unseen: Card
   return [...choice.cards].sort((a, b) => strength(a) - strength(b))[0]
 }
 
+/**
+ * Public-information decision: should this bot call for the hidden contract before discarding?
+ * The bidder knows the suit and only calls when a trump can win; other seats call only on a
+ * valuable last-to-play trick, and never when partner already holds it.
+ */
+export function botShouldReveal(state: GameState, player: number): boolean {
+  if (!canExposeContract(state, player)) return false
+  const trick = state.currentTrick
+  if (trick.length !== 3) return false
+  const winner = winnerOfTrick(trick, state.trumpSuit, state.trumpRevealed, state.reverse && state.trumpRevealed)
+  if (teamOf(winner) === teamOf(player)) return false
+  const lastTrickBonus = state.tricks.length === 7 && state.rules.lastTrickBonus ? 1 : 0
+  const trickPoints = trick.reduce((sum, play) => sum + play.card.points, 0) + lastTrickBonus
+  const knowsSuit = state.bidder === player && !state.seventhCard
+  if (knowsSuit && state.trumpSuit) {
+    const winningCard = trick.find(play => play.player === winner)?.card ?? trick[0].card
+    const trumps = (state.hands[player] ?? []).filter(card => card.suit === state.trumpSuit)
+    return trumps.some(card => beatsCard(card, winningCard, state.trumpSuit, state.reverse))
+  }
+  // Other seats cannot identify their trumps yet. Call only when the last trick has enough
+  // points to justify the risk; otherwise keep the contract hidden and discard.
+  return trickPoints >= 2
+}
+
 export function chooseBotCard(state: GameState, player: number): Card {
   const hand = state.hands[player] ?? []
   const options = legalCardsFor(state, player)
   if (options.length <= 1) return options[0]
   const trick = state.currentTrick
-  const ledSuit = trick[0]?.card.suit
-  const knowsMode = state.trumpRevealed || state.bidder === player
-  const canFollow = !ledSuit || hand.some(card => card.suit === ledSuit)
 
-  // A defender who is void before the reveal cannot know the mode. Spend the least
-  // valuable off-suit card instead of simulating with information the seat does not have.
-  if (!knowsMode && trick.length > 0 && ledSuit && !canFollow) {
-    return lowestRisk(options, null, card => card.strength)
-  }
-
-  // Any off-suit play by the bidder (or any void play after the reveal) makes trump live.
-  const revealed = state.trumpRevealed || (trick.length > 0 && !canFollow && knowsMode)
+  // Trump is live only after someone has called for it. A void discard without a reveal
+  // leaves the contract hidden, so do not plan around trumps the seat cannot see.
+  const hiddenHomeTrump = !state.trumpRevealed && state.bidder === player && !state.seventhCard ? state.trumpSuit : null
+  const nonTrumpDiscards = hiddenHomeTrump ? options.filter(card => card.suit !== hiddenHomeTrump) : []
+  const discardPool = nonTrumpDiscards.length ? nonTrumpDiscards : options
+  const revealed = state.trumpRevealed
   const reverseNow = state.reverse && revealed
   const trump = revealed ? state.trumpSuit : null
   const strength = (card: Card) => cardStrength(card, reverseNow)
@@ -907,20 +926,20 @@ export function chooseBotCard(state: GameState, player: number): Card {
 
   if (partnerWinning) {
     if (lastToPlay) {
-      return [...options].sort((a, b) => b.points - a.points || strength(a) - strength(b))[0]
+      return [...discardPool].sort((a, b) => b.points - a.points || strength(a) - strength(b))[0]
     }
     // If partner's card cannot be beaten, throw points under it. If it can be beaten,
     // overtake only when a safe winner exists; otherwise keep the high cards.
     if (isCardSafe(winningCard, trump, reverseNow, unseen)) {
-      const nonOvertaking = options.filter(card => !beatsNow(card))
-      const pool = nonOvertaking.length ? nonOvertaking : options
+      const nonOvertaking = discardPool.filter(card => !beatsNow(card))
+      const pool = nonOvertaking.length ? nonOvertaking : discardPool
       return [...pool].sort((a, b) => b.points - a.points || strength(a) - strength(b))[0]
     }
     const safeWinners = options.filter(card => beatsNow(card) && isCardSafe(card, trump, reverseNow, unseen))
     if (safeWinners.length) {
       return [...safeWinners].sort((a, b) => (strength(a) + a.points * 0.25) - (strength(b) + b.points * 0.25))[0]
     }
-    return lowestRisk(options, trump, strength)
+    return lowestRisk(discardPool, trump, strength)
   }
 
   const winners = options.filter(beatsNow)
@@ -944,12 +963,12 @@ export function chooseBotCard(state: GameState, player: number): Card {
   }
 
   // Cannot win: concede cheaply, saving trump and point cards.
-  return lowestRisk(options, trump, strength)
+  return lowestRisk(discardPool, trump, strength)
 }
 
 /**
  * Certain, visible-information checks only. A note is produced when the last player to act could
- * compare candidates with the cards already on the table; hidden-trump or off-suit reveals are
+ * compare candidates with the cards already on the table; hidden-contract decisions are
  * deliberately excluded because the outcome was not knowable at decision time.
  */
 function analyzeDecision(decision: DecisionRecord): MistakeNote[] {
@@ -959,12 +978,11 @@ function analyzeDecision(decision: DecisionRecord): MistakeNote[] {
   const wasRevealed = decision.trumpRevealed
   const knownTrump = decision.knownTrumpSuit
   const knownReverse = decision.knownReverse
-  const revealFor = (candidate: Card) => wasRevealed || candidate.suit !== ledSuit
-  const reverseFor = (candidate: Card) => knownReverse && revealFor(candidate)
+  const reverseActive = knownReverse && wasRevealed
   if (!knownTrump && !knownReverse && !wasRevealed && legal.some(candidate => candidate.suit !== ledSuit)) return []
 
   const scored = legal.map(candidate => {
-    const winner = winnerOfTrick([...trickBefore, { player, card: candidate }], knownTrump, revealFor(candidate), reverseFor(candidate))
+    const winner = winnerOfTrick([...trickBefore, { player, card: candidate }], knownTrump, wasRevealed, reverseActive)
     return { candidate, winner, wins: teamOf(winner) === teamOf(player) }
   })
   const selected = scored.find(item => item.candidate.id === card.id)
@@ -973,11 +991,11 @@ function analyzeDecision(decision: DecisionRecord): MistakeNote[] {
   const partnerHeldTrick = teamOf(winnerOfTrick(trickBefore, knownTrump, wasRevealed, knownReverse && wasRevealed)) === teamOf(player)
   const lastTrickBonus = decision.completedTricksBefore.length === 7 && decision.rules.lastTrickBonus ? 1 : 0
   const trickPoints = trickBefore.reduce((sum, play) => sum + play.card.points, 0) + card.points + lastTrickBonus
-  const winners = scored.filter(item => item.wins).sort((a, b) => cardStrength(a.candidate, reverseFor(a.candidate)) - cardStrength(b.candidate, reverseFor(b.candidate)))
+  const winners = scored.filter(item => item.wins).sort((a, b) => cardStrength(a.candidate, reverseActive) - cardStrength(b.candidate, reverseActive))
 
   if (!selected.wins) {
     const cheapestWin = winners[0]
-    if (cheapestWin && (trickPoints >= 1 || cardStrength(cheapestWin.candidate, reverseFor(cheapestWin.candidate)) <= 6)) {
+    if (cheapestWin && (trickPoints >= 1 || cardStrength(cheapestWin.candidate, reverseActive) <= 6)) {
       return [{
         trickNumber,
         level: 'opportunity',
@@ -990,7 +1008,7 @@ function analyzeDecision(decision: DecisionRecord): MistakeNote[] {
     }
     const freeDiscard = scored
       .filter(item => !item.wins && item.candidate.points === 0)
-      .sort((a, b) => cardStrength(a.candidate, reverseFor(a.candidate)) - cardStrength(b.candidate, reverseFor(b.candidate)))[0]
+      .sort((a, b) => cardStrength(a.candidate, reverseActive) - cardStrength(b.candidate, reverseActive))[0]
     if (card.points > 0 && freeDiscard) {
       return [{
         trickNumber,
@@ -1006,9 +1024,9 @@ function analyzeDecision(decision: DecisionRecord): MistakeNote[] {
   }
 
   const cheaperWin = winners
-    .filter(item => item.candidate.id !== card.id && cardStrength(item.candidate, reverseFor(item.candidate)) <= cardStrength(card, reverseFor(card)) - 2)
-    .sort((a, b) => cardStrength(a.candidate, reverseFor(a.candidate)) - cardStrength(b.candidate, reverseFor(b.candidate)))[0]
-  if (cheaperWin && cardStrength(card, reverseFor(card)) >= 6) {
+    .filter(item => item.candidate.id !== card.id && cardStrength(item.candidate, reverseActive) <= cardStrength(card, reverseActive) - 2)
+    .sort((a, b) => cardStrength(a.candidate, reverseActive) - cardStrength(b.candidate, reverseActive))[0]
+  if (cheaperWin && cardStrength(card, reverseActive) >= 6) {
     return [{
       trickNumber,
       level: 'efficiency',
@@ -1064,13 +1082,13 @@ function buildBidReview(records: BidRecord[], reverse = false): BidReview | null
 }
 
 /**
- * The player who is void in the led suit exposes the hidden contract before choosing a card.
+ * A player who is void in the led suit may expose the hidden contract before choosing a card.
  * The reveal is public; that player must then play a trump this trick if one is available.
  */
 export function revealHiddenContract(state: GameState, player: number): GameState {
   if (state.phase !== 'play' || state.pausedTrick || state.trumpRevealed || state.currentPlayer !== player) return state
   const ledSuit = state.currentTrick[0]?.card.suit
-  if (!ledSuit || !needsTrumpReveal(state, player)) return state
+  if (!ledSuit || !canExposeContract(state, player)) return state
 
   let hands = state.hands
   if (state.seventhCard && state.bidder !== null) {
@@ -1113,22 +1131,12 @@ export function playCard(state: GameState, player: number, cardId: string): Game
   const isSeventhPlay = state.bidder === player && state.seventhCard?.id === card.id && !state.trumpRevealed
   const trickBefore = [...state.currentTrick]
   const wasRevealed = state.trumpRevealed
-  const ledSuit = trickBefore[0]?.card.suit
-  const voidInLedSuit = !!ledSuit && !handBefore.some(c => c.suit === ledSuit)
-  const hiddenSeventhTrump = state.bidder === player && !!state.seventhCard && state.seventhCard.suit === state.trumpSuit
-  const hiddenTrumpHeld = !!state.trumpSuit && (handBefore.some(c => c.suit === state.trumpSuit) || hiddenSeventhTrump)
-  // A player who exposes the hidden contract must trump this trick when able. Reveal first;
-  // the card choice happens on the next step, with only the available trumps playable.
-  if (!wasRevealed && !isSeventhPlay && voidInLedSuit && hiddenTrumpHeld && card.suit !== state.trumpSuit) {
-    return revealHiddenContract(state, player)
-  }
-  const revealsNow = !wasRevealed && (voidInLedSuit || isSeventhPlay)
+  // Only the bidder's seventh card forces the contract into the open. A void player who
+  // plays off-suit without revealing keeps trump hidden for the rest of this trick.
+  const revealsNow = !wasRevealed && isSeventhPlay
   const trumpRevealed = wasRevealed || revealsNow
   const nextHand = isSeventhPlay ? handBefore : handBefore.filter(c => c.id !== card.id)
-  let hands = state.hands.map((h, i) => i === player ? nextHand : h)
-  if (revealsNow && state.seventhCard && !isSeventhPlay && state.bidder !== null) {
-    hands = hands.map((h, i) => i === state.bidder ? [...h, state.seventhCard!] : h)
-  }
+  const hands = state.hands.map((h, i) => i === player ? nextHand : h)
   const currentTrick = [...trickBefore, { player, card }]
   const decisions = player === 0 ? [...state.decisions, {
     trickNumber: state.tricks.length + 1,
@@ -1154,15 +1162,9 @@ export function playCard(state: GameState, player: number, cardId: string): Game
     stake: state.stake,
     seventhCard: state.seventhCard ? { ...state.seventhCard } : null,
   }] : state.decisions
-  const reverseWithTrump = state.reverse && !!state.trumpSuit
-  const revealText = state.reverse
-    ? reverseWithTrump
-      ? `${act(player, 'cannot follow', 'cannot follow')} ${SUIT_LABEL[ledSuit!]}—trump is revealed: ${SUIT_LABEL[state.trumpSuit!]} with the reverse ranking (7 high, J low).`
-      : `${act(player, 'cannot follow', 'cannot follow')} ${SUIT_LABEL[ledSuit!]}—reverse revealed: 7 is high, J is low.`
-    : isSeventhPlay
-      ? `${act(player, 'shows', 'show')} the seventh card—trump is revealed: ${SUIT_LABEL[state.trumpSuit!]}.`
-      : `${act(player, 'cannot follow', 'cannot follow')} ${SUIT_LABEL[ledSuit!]}—trump is revealed: ${SUIT_LABEL[state.trumpSuit!]}.`
-  const logEntry = revealsNow ? revealText : `${act(player, `plays ${cardText(card)}`, `play ${cardText(card)}`)}.`
+  const logEntry = isSeventhPlay
+    ? `${act(player, 'shows', 'show')} the seventh card—trump is revealed: ${SUIT_LABEL[state.trumpSuit!]}.`
+    : `${act(player, `plays ${cardText(card)}`, `play ${cardText(card)}`)}.`
   let next: GameState = withVersion(state, {
     hands,
     currentTrick,
@@ -1172,11 +1174,7 @@ export function playCard(state: GameState, player: number, cardId: string): Game
     decisions,
     log: [...state.log, logEntry].slice(-32),
     message: revealsNow
-      ? state.reverse
-        ? reverseWithTrump
-          ? `Reverse revealed: ${SUIT_LABEL[state.trumpSuit!]} is trump—7 is high and J is low.`
-          : 'Reverse revealed: no trump—7 is high and J is low.'
-        : `Trump revealed: ${SUIT_LABEL[state.trumpSuit!]} can now beat other suits.`
+      ? `Trump revealed: ${SUIT_LABEL[state.trumpSuit!]} can now beat other suits.`
       : `${PLAYER_NAMES[player]} played ${cardText(card)}.`,
   })
   if (currentTrick.length < 4) {

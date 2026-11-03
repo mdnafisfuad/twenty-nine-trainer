@@ -71,8 +71,8 @@
 
 **The table**
 - A card-stack match scoreboard whose suit mark carries the sign, and a 28/29-point race with the bidding side filling from the left and the defence from the right.
-- A face-down trump card that flips when the suit is revealed. If you are void in the led suit and trump is still hidden, tap the card to reveal it before discarding.
-- Exposing the hidden contract is a commitment: the player who reveals it must play a trump in that trick if one is available.
+- A face-down trump card that flips when the suit is revealed. If you are void in the led suit and trump is still hidden, you may discard without revealing, or tap the card to expose it.
+- Exposing the hidden contract is a commitment: the player who reveals it must play a trump in that trick if one is available. Discarding without revealing keeps trump hidden and carries no such obligation.
 - Seat chips with avatars, card fans, dealer tokens, and auction wins instead of status sentences.
 - Coach tip history with previous/next arrows and a Latest jump back to live advice.
 - Interactive trick timeline, local session statistics, and layouts for phone, tablet, and desktop — down to 320px.
@@ -102,7 +102,7 @@ Card order is **J > 9 > A > 10 > K > Q > 8 > 7**. The usual opening bid is 16; t
 
 In Reverse, the order flips to **7 high and J low**; point values stay the same.
 
-If you expose the hidden contract while void, you must play a trump in that trick if you hold one. The rule applies to normal trump and Reverse with trump; a no-trump Reverse has no such obligation.
+If you expose the hidden contract while void, you must play a trump in that trick if you hold one. The rule applies to normal trump and Reverse with trump; a no-trump Reverse has no such obligation. You may instead discard without exposing, keeping the contract hidden for a later trick.
 
 <table>
   <tr>
@@ -123,7 +123,7 @@ If you expose the hidden contract while void, you must play a trump in that tric
   </tr>
   <tr>
     <td><strong>Reverse</strong></td>
-    <td>A no-trump contract with a face-down 2 indicator. The first player who cannot follow suit exposes it; from that trick onward the ranking is 7 high and J low. A royal pair cannot be declared.</td>
+    <td>A no-trump contract with a face-down 2 indicator. A player who is void may expose it; from that trick onward the ranking is 7 high and J low. A royal pair cannot be declared.</td>
   </tr>
   <tr>
     <td><strong>Reverse with trump</strong></td>

@@ -106,6 +106,8 @@ export function knownVoids(state: GameState): Set<Suit>[] {
       if (play.card.suit !== ledSuit) voids[play.player].add(ledSuit)
     }
   }
+  const ledSuit = state.currentTrick[0]?.card.suit
+  if (state.mustTrump !== null && ledSuit) voids[state.mustTrump].add(ledSuit)
   return voids
 }
 
@@ -163,7 +165,7 @@ export function bidInsight(state: GameState, player = 0): CoachInsight {
       plan: `The contract target is ${state.highBid}. Continue when you are ready to choose trump.`,
       bullets: [
         `${ours ? 'Your' : 'The bidding'} side needs ${state.highBid} points. ${state.bidder === 0 ? 'You will choose trump next.' : `${PLAYER_NAMES[state.bidder]} will choose the contract next.`}`,
-        ...(state.rules.reverse ? ['Reverse is available: no trump, with the ranking flipping to 7 high on the first void.'] : []),
+        ...(state.rules.reverse ? ['Reverse is available: no trump, with the ranking flipping to 7 high when a void player reveals it.'] : []),
         ...(state.rules.reverseTrump ? ['Reverse with trump is also available: name a suit, and the trump 7 becomes the strongest card once revealed.'] : []),
       ],
       action: 'Continue',
@@ -174,7 +176,7 @@ export function bidInsight(state: GameState, player = 0): CoachInsight {
     `Trump power ${report.power.toFixed(1)} projects a contract around ${report.advised}. The opening minimum is 16.`,
   ]
   if (state.rules.reverse) {
-    bullets.push('Reverse is available to the bidder: no trump, and after the first void 7 is high and J is low.')
+    bullets.push('Reverse is available to the bidder: no trump, and once a void player reveals it, 7 is high and J is low.')
   }
   if (state.rules.reverseTrump) {
     bullets.push('Reverse with trump is available: name a suit and the ranking flips to 7 high, J low when the contract is revealed. The royal pair can still be declared.')
@@ -262,7 +264,7 @@ export function trumpInsight(state: GameState, player = 0): CoachInsight {
     bullets.push('Or call the seventh card: the 7th card dealt to you sets trump and stays out of your hand until trump is revealed.')
   }
   if (state.rules.reverse) {
-    bullets.push('Or declare Reverse: no trump. The 2 indicator stays face down; the first void flips the ranking to 7 high, J low. A pair cannot be declared.')
+    bullets.push('Or declare Reverse: no trump. The 2 indicator stays face down; a void player can reveal it to flip the ranking to 7 high, J low. A pair cannot be declared.')
   }
   if (state.rules.reverseTrump) {
     bullets.push('Or declare Reverse with trump: name a suit and the ranking flips to 7 high, J low once revealed. The trump 7 becomes the strongest card, and the royal pair can be declared.')
@@ -377,11 +379,11 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
             ? `${SUIT_LABEL[state.trumpSuit]} is trump. Reverse is active: the 7 of trump is the strongest card, and 7 is high in every suit.`
             : 'No trump. Reverse is active: 7 is high and J is low.'
           : state.trumpSuit
-            ? `You declared Reverse with ${SUIT_LABEL[state.trumpSuit]} as trump; the first void reveals both the suit and the 7-high ranking.`
-            : 'No trump. Your 2 indicator is still face down; the first void flips the ranking to 7 high, J low.'
+            ? `You declared Reverse with ${SUIT_LABEL[state.trumpSuit]} as trump; a void player can call for it to reveal the suit and the 7-high ranking.`
+            : 'No trump. Your 2 indicator is still face down; a void player can call for it to flip the ranking to 7 high, J low.'
         : knownTrump
           ? `${trumpsOutstanding} trump${trumpsOutstanding === 1 ? '' : 's'} remain unseen${trumpsOutstanding ? ` (${SUIT_LABEL[knownTrump]})` : ''}.`
-          : 'Trump is still hidden, so an opponent who is void can change the trick by playing off-suit.',
+          : 'Trump is still hidden; a void opponent can call for it to change the trick.',
       ...(seventhLine ? [seventhLine] : []),
     ]
 
@@ -421,10 +423,10 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
     const lowCard = [...safe.cards].sort((a, b) => strengthOf(a) - strengthOf(b))[0]
     const voidOpponent = [1, 3].find(seat => voids[seat].has(safe.suit))
     if (voidOpponent !== undefined && !knowsMode) {
-      bullets.push(`${teamName(voidOpponent)} is void in ${SUIT_LABEL[safe.suit]}, so this lead may reveal the hidden mode.`)
+      bullets.push(`${teamName(voidOpponent)} is void in ${SUIT_LABEL[safe.suit]}, so this lead gives them the option to call for the hidden mode.`)
     }
     if (knownReverse && voidOpponent !== undefined) {
-      bullets.push(`${teamName(voidOpponent)} is void in ${SUIT_LABEL[safe.suit]}; leading it can expose the reverse and flip the ranking immediately.`)
+      bullets.push(`${teamName(voidOpponent)} is void in ${SUIT_LABEL[safe.suit]}; leading it gives them the option to expose the reverse and flip the ranking.`)
     }
     if (line) bullets.push(line)
     return {
@@ -432,13 +434,13 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
       title: `Probe with a low ${SUIT_LABEL[safe.suit]}`,
       summary: knownReverse
         ? knownTrump
-          ? `You do not hold the top card in a suit outright yet. Lead cheaply, expose the reverse on your terms, and keep the trump 7s and 8s for the tricks they must win.`
-          : 'You do not hold the top card in a suit outright yet. Lead cheaply, expose the reverse when it suits you, and keep your new high cards (7s and 8s) for tricks you can win.'
+          ? `You do not hold the top card in a suit outright yet. Lead cheaply and keep the trump 7s and 8s for the tricks they must win once the reverse is exposed.`
+          : 'You do not hold the top card in a suit outright yet. Lead cheaply and keep your new high cards (7s and 8s) for tricks you can win after the reverse is exposed.'
         : 'You do not hold the top card in a suit outright yet. Lead cheaply, learn who is void, and keep your high cards for tricks you can win.',
       plan: knownReverse
         ? knownTrump
-          ? 'Lead low, reveal the reverse on your terms, and save the high trumps for the point-rich tricks.'
-          : 'Lead low, reveal the reverse on your terms, and keep the 7s and 8s for the flipped ranking.'
+          ? 'Lead low, save the high trumps for the point-rich tricks, and let the reverse flip when a void player calls for it.'
+          : 'Lead low, keep the 7s and 8s for the flipped ranking, and let the reverse flip when a void player calls for it.'
         : 'Lead low, learn the voids, and keep your high cards until a suit is safe.',
       bullets,
       action: `Play ${cardText(lowCard)}`,
@@ -449,7 +451,7 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
   // ---------------- Following ----------------
   const ledSuit = trick[0].card.suit
   const canFollow = hand.some(card => card.suit === ledSuit)
-  const reverseNow = knownReverse && (state.trumpRevealed || !canFollow)
+  const reverseNow = knownReverse && state.trumpRevealed
   const strengthNow = (card: Card) => cardStrength(card, reverseNow)
   const winnerBefore = winnerOfTrick(trick, knownTrump, state.trumpRevealed, reverseNow)
   const partnerWinning = teamOf(winnerBefore) === teamOf(player)
@@ -462,33 +464,20 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
         ? `Reverse is active: ${SUIT_LABEL[knownTrump]} is trump, the trump 7 is the strongest card, and 7 is high in every suit.`
         : 'Reverse is active: no trump, 7 is high and J is low.'
       : knownTrump
-        ? `You declared Reverse with ${SUIT_LABEL[knownTrump]} as trump; the first void reveals the suit and the 7-high ranking.`
-        : 'No trump: playing off-suit exposes the 2 and flips the ranking.')
+        ? `You declared Reverse with ${SUIT_LABEL[knownTrump]} as trump; a void player can call for it and flip the ranking to 7 high.`
+        : 'No trump: the 2 indicator stays face down until a void player calls for it, then 7 is high and J is low.')
   }
   if (seventhLine) bullets.push(seventhLine)
   if (state.mustTrump === player && state.trumpSuit) {
     bullets.push('You exposed the contract, so the rules require a trump from you this trick if you hold one.')
   }
 
-  // The hidden contract must be exposed before a void player can discard.
+  // The reveal is optional: keep the contract hidden and discard, or call for it and trump
+  // if able. The card advice below assumes the player keeps the contract hidden.
   if (!canFollow && !state.trumpRevealed) {
-    const hasTrump = !!state.trumpSuit
-    bullets.push(hasTrump
-      ? 'The reveal is public: the trump suit applies from this trick onward, and the revealer must play a trump if able.'
-      : 'The reveal is public: the reverse ranking starts with this trick, and there is no trump to play.')
-    if (line) bullets.push(line)
-    return {
-      tag, tone: 'warn', confidence: 'certain',
-      title: hasTrump
-        ? state.reverse ? 'Reveal the hidden reverse trump' : 'Reveal the hidden trump first'
-        : 'Reveal the hidden reverse first',
-      summary: 'You are void in the led suit. The face-down contract must be exposed before you choose a card.',
-      plan: hasTrump
-        ? 'Tap the hidden contract to reveal it, then play a trump if you have one. If you have no trump, discard your cheapest card.'
-        : 'Tap the hidden contract to reveal it, then discard your cheapest card. There is no trump suit to play.',
-      bullets,
-      action: 'Reveal the contract',
-    }
+    bullets.push(state.trumpSuit
+      ? 'You may discard without revealing, or call for the hidden trump. If you reveal, you must play a trump when you hold one.'
+      : 'You may discard without revealing, or expose the hidden reverse. The ranking flips once it is revealed.')
   }
 
   if (partnerWinning) {
@@ -539,7 +528,7 @@ export function playInsight(state: GameState, player = 0): CoachInsight {
 
   const takesTrick = legal
     .filter(card => {
-      const revealed = state.trumpRevealed || card.suit !== ledSuit
+      const revealed = state.trumpRevealed
       const reverseFor = knownReverse && revealed
       return teamOf(winnerOfTrick([...trick, { player, card }], knownTrump, revealed, reverseFor)) === teamOf(player)
     })
@@ -621,12 +610,12 @@ export function observationInsight(state: GameState, player = 0): CoachInsight {
     return {
       tag: 'Contract read', tone: 'neutral', confidence: 'estimate', source: 'observation',
       title: `${PLAYER_NAMES[bidder]} is choosing the contract`,
-      summary: 'The bidder chooses trump from the opening four, calls the seventh card, or declares Reverse. The choice stays hidden until the first void.',
+      summary: 'The bidder chooses trump from the opening four, calls the seventh card, or declares Reverse. The choice stays hidden until a void player calls for it.',
       plan: 'Watch the first suit they lead and whether the trump indicator flips. That tells you where their strength sits.',
       bullets: [
         `Contract target: ${contractTarget(state)} points.`,
         state.rules.reverse || state.rules.reverseTrump
-          ? `Reverse is available${state.rules.reverse && state.rules.reverseTrump ? ' with or without trump' : state.rules.reverseTrump ? ' with a named trump' : ' as no trump'}; the ranking flips to 7 high on the first void.`
+          ? `Reverse is available${state.rules.reverse && state.rules.reverseTrump ? ' with or without trump' : state.rules.reverseTrump ? ' with a named trump' : ' as no trump'}; the ranking flips to 7 high when it is revealed.`
           : 'The trump suit is hidden.',
       ],
     }
@@ -831,10 +820,12 @@ export function tableReading(state: GameState, player = 0): string[] {
         : 'Reverse is active: <b>no trump</b>; 7 is high and J is low.')
     } else if (state.bidder === player) {
       lines.push(state.trumpSuit
-        ? `You declared <b>Reverse</b> with <b>${SUIT_LABEL[state.trumpSuit]}</b> as trump. The suit and the 7-high ranking stay hidden until the first void.`
-        : 'You declared <b>Reverse</b>—no trump. The 2 indicator stays face down until the first void, then 7 becomes high and J low.')
+        ? `You declared <b>Reverse</b> with <b>${SUIT_LABEL[state.trumpSuit]}</b> as trump. The suit and the 7-high ranking stay hidden until a void player calls for them.`
+        : 'You declared <b>Reverse</b>-no trump. The 2 indicator stays face down until a void player calls for it, then 7 becomes high and J low.')
     } else {
-      lines.push('The contract is still hidden. A void will expose the trump and the reverse ranking.')
+      lines.push(state.trumpSuit
+        ? 'The contract is still hidden. A void player may call for the trump and the reverse ranking.'
+        : 'The reverse is still hidden. A void player may call for the 2 indicator.')
     }
     if (state.trumpSuit && state.trumpRevealed) {
       const trumps = unseen.filter(card => card.suit === state.trumpSuit)
@@ -845,9 +836,9 @@ export function tableReading(state: GameState, player = 0): string[] {
     const top = trumps.sort((a, b) => b.strength - a.strength)[0]
     lines.push(`Trump is <b>${SUIT_LABEL[state.trumpSuit]}</b> and revealed. ${trumps.length} trump${trumps.length === 1 ? '' : 's'} unseen${top ? `, highest ${cardText(top)}` : ''}.`)
   } else if (state.trumpSuit && state.bidder === player) {
-    lines.push(`You know trump is <b>${SUIT_LABEL[state.trumpSuit]}</b>, but it stays hidden from the table until the first void.`)
+    lines.push(`You know trump is <b>${SUIT_LABEL[state.trumpSuit]}</b>, but it stays hidden from the table until a void player calls for it.`)
   } else if (state.trumpSuit) {
-    lines.push('Trump is still hidden. Avoid being the first player to show a void unless it wins the trick.')
+    lines.push('Trump is still hidden. A void player can choose to call for it; discarding keeps it hidden.')
   }
 
   const voids = knownVoids(state)
@@ -915,22 +906,18 @@ export function handInsights(game: GameState): HandInsights {
     )
   }
 
-  const revealTrick = game.tricks.find(trick => {
-    const ledSuit = trick.plays[0]?.card.suit
-    return trick.plays.some(play => ledSuit && play.card.suit !== ledSuit)
-  })
   bullets.push(
     review.reverse
-      ? revealTrick
+      ? game.trumpRevealed
         ? review.trumpSuit
-          ? `The reverse was exposed on trick <b>${revealTrick.number}</b>. From that trick onward, 7s were the strongest cards in every suit and ${SUIT_LABEL[review.trumpSuit]} won every ruff.`
-          : `Reverse was exposed on trick <b>${revealTrick.number}</b>. From that trick onward, 7s were the strongest cards.`
+          ? `The reverse was exposed during the hand. From that trick onward, 7s were the strongest cards in every suit and ${SUIT_LABEL[review.trumpSuit]} won every ruff.`
+          : 'The reverse was exposed during the hand. From that trick onward, 7s were the strongest cards.'
         : review.trumpSuit
           ? 'The reverse trump was never exposed, so the normal ranking stood all hand.'
           : 'The 2 indicator was never exposed, so the normal ranking stood all hand.'
-      : revealTrick
-        ? `Trump first appeared on trick <b>${revealTrick.number}</b>. Before that, only the led suit could win — high cards were safe.`
-        : 'Nobody showed a void, so trump never decided a trick. Following suit cleanly kept the hand readable.',
+      : game.trumpRevealed
+        ? 'Trump was exposed during the hand. Before that, only the led suit could win — high cards were safe.'
+        : 'Trump was never exposed, so only the led suit decided every trick.',
   )
 
   const worstLoss = game.tricks

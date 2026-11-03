@@ -5,10 +5,10 @@ import {
   Settings2, ShieldCheck, Sparkles, Swords, Target, X,
 } from 'lucide-react'
 import {
-  applyBid, botBid, botDoubleDecision, botRedoubleDecision, cardText,
+  applyBid, botBid, botDoubleDecision, botRedoubleDecision, botShouldReveal, canExposeContract, cardText,
   chooseBotCard, chooseBotTrump, chooseReverse, chooseReverseTrump, chooseSeventhCard, chooseTrump, continueAfterAuction,
   continueAfterTrick, contractTarget, declarePair, DEFAULT_RULES, isRedSuit, legalCardsFor,
-  maxBidFor, needsTrumpReveal, newHand, openingReport, pairEligible, playCard, PLAYER_NAMES, PLAYER_POSITIONS,
+  maxBidFor, newHand, openingReport, pairEligible, playCard, PLAYER_NAMES, PLAYER_POSITIONS,
   resolveStake, revealHiddenContract, SUITS, SUIT_LABEL, SUIT_SYMBOL, teamOf, type Card, type GameState, type RuleSet,
   type Suit,
 } from './game'
@@ -386,7 +386,7 @@ function TrumpChooser({ onChoose, onSeventh, onReverse, onReverseTrump, seventhE
     </button>}
     {reverseEnabled && <button className="seventh-choice reverse-choice" onClick={onReverse}>
       <span className="seventh-choice-icon reverse-choice-icon">R</span>
-      <span><strong>Declare Reverse — no trump</strong><small>A 2 is the table indicator. It stays face down; the first void flips the ranking to 7 high and J low. No royal pair.</small></span>
+      <span><strong>Declare Reverse — no trump</strong><small>A 2 is the table indicator. It stays face down; a void player can reveal it to flip the ranking to 7 high and J low. No royal pair.</small></span>
       <ArrowUpRight size={16} aria-hidden="true" />
     </button>}
     {reverseTrumpEnabled && <div className="reverse-trump-choice">
@@ -748,9 +748,9 @@ export default function App() {
     } else if (game.phase === 'play' && !game.pausedTrick && game.currentPlayer !== 0) {
       const player = game.currentPlayer
       const version = game.version
-      if (needsTrumpReveal(game, player)) {
-        // Expose the contract before the bot chooses. The next effect run sees the public
-        // trump and can pick a trump if the rule requires one.
+      if (botShouldReveal(game, player)) {
+        // The bot chose to call for the hidden contract. The next effect run sees the public
+        // trump and must pick a trump if the revealer holds one.
         timer = window.setTimeout(() => setGame(current => current.version === version ? revealHiddenContract(current, player) : current), 460)
       } else {
         // Search inside the timer so StrictMode's development double-effect does not run the
@@ -784,19 +784,18 @@ export default function App() {
   const userStakeTurn = game.phase === 'stake' && game.stakeStage !== null && game.bidder !== null && (
     game.stakeStage === 'defend' ? teamOf(0) !== teamOf(game.bidder) : teamOf(0) === teamOf(game.bidder)
   )
-  const mustRevealFirst = userCanPlay && needsTrumpReveal(game, 0)
-  const userCanReveal = mustRevealFirst
-  const currentLegal = useMemo(() => userCanPlay && !mustRevealFirst ? legalCardsFor(game, 0).map(card => card.id) : [], [game, userCanPlay, mustRevealFirst])
+  const userCanReveal = userCanPlay && canExposeContract(game, 0)
+  const currentLegal = useMemo(() => userCanPlay ? legalCardsFor(game, 0).map(card => card.id) : [], [game, userCanPlay])
   // Start the sampled comparison automatically on the human's turn so the live tip can
   // become a hybrid verdict without waiting for a button press.
   useEffect(() => {
     if (resumePrompt) return
-    if (!preferences.coach || !userCanPlay || mustRevealFirst || !evaluatorWorker.current) return
+    if (!preferences.coach || !userCanPlay || !evaluatorWorker.current) return
     const key = `${game.handId}:${game.version}:${preferences.compareSamples}`
     if (autoAnalysisKey.current === key) return
     autoAnalysisKey.current = key
     requestMoveAnalysis()
-  }, [preferences.coach, preferences.compareSamples, userCanPlay, mustRevealFirst, game.handId, game.version, resumePrompt])
+  }, [preferences.coach, preferences.compareSamples, userCanPlay, game.handId, game.version, resumePrompt])
   // The detailed comparison is an on-demand study panel; a new decision hides it.
   useEffect(() => { setShowMovePanel(false) }, [game.handId, game.version])
   const currentTrickPoints = game.currentTrick.reduce((sum, item) => sum + item.card.points, 0)
@@ -1180,7 +1179,7 @@ export default function App() {
               {game.phase === 'auction' || game.phase === 'trump' ? <div className="table-center is-bidding">
                 <div className="center-logo" aria-hidden="true"><span>29</span><i>♠</i></div>
                 <strong className="center-title">{game.auctionComplete ? 'Auction complete' : game.phase === 'auction' ? 'The auction' : 'Choose your edge'}</strong>
-                <span className="center-subtitle">{game.auctionComplete ? `${PLAYER_NAMES[game.bidder ?? 0]} won at ${game.highBid} · continue below` : game.phase === 'auction' ? (game.highBid === null ? 'Opening bid · minimum 16' : `High bid ${game.highBid} · ${PLAYER_NAMES[game.bidder ?? 0]}`) : game.rules.reverse || game.rules.reverseTrump ? 'Choose a suit, the seventh card, or Reverse' : 'Trump stays hidden until the first void'}</span>
+                <span className="center-subtitle">{game.auctionComplete ? `${PLAYER_NAMES[game.bidder ?? 0]} won at ${game.highBid} · continue below` : game.phase === 'auction' ? (game.highBid === null ? 'Opening bid · minimum 16' : `High bid ${game.highBid} · ${PLAYER_NAMES[game.bidder ?? 0]}`) : game.rules.reverse || game.rules.reverseTrump ? 'Choose a suit, the seventh card, or Reverse' : 'Trump stays hidden until a void player calls for it'}</span>
                 {game.phase === 'auction' && <>
                   <div className="auction-seats">
                     {[0, 1, 2, 3].map(player => {
@@ -1265,12 +1264,12 @@ export default function App() {
           <section className={`decision-dock ${myTurn ? 'dock-active' : ''}`} aria-label="Your decision">
             <div className="dock-head">
               <div className="dock-title"><Hand size={18} aria-hidden="true" /><h2>Your hand</h2><span className="dock-count">{sortedHand.length} cards</span></div>
-              {preferences.coach && userCanPlay && !mustRevealFirst && <div className="dock-actions"><button className="button-quiet" onClick={askForHint}><Lightbulb size={15} aria-hidden="true" /> Hint</button><button className="button-secondary" onClick={() => requestMoveAnalysis(true)} disabled={analysisLoading === 'moves'} aria-live="polite">{analysisLoading === 'moves' ? <><Activity size={14} className="analysis-spin" aria-hidden="true" /> Analyzing</> : <><Target size={14} aria-hidden="true" /> Compare</>}</button></div>}
+              {preferences.coach && userCanPlay && <div className="dock-actions"><button className="button-quiet" onClick={askForHint}><Lightbulb size={15} aria-hidden="true" /> Hint</button><button className="button-secondary" onClick={() => requestMoveAnalysis(true)} disabled={analysisLoading === 'moves'} aria-live="polite">{analysisLoading === 'moves' ? <><Activity size={14} className="analysis-spin" aria-hidden="true" /> Analyzing</> : <><Target size={14} aria-hidden="true" /> Compare</>}</button></div>}
             </div>
             {game.pausedTrick
               ? <p className="dock-help">The completed trick is above. Continue when you are ready.</p>
-              : mustRevealFirst
-                ? <p className="dock-help">You are void in the led suit. Tap the hidden contract to reveal it; if you hold a trump, you must play one this trick.</p>
+              : userCanReveal
+                ? <p className="dock-help">You are void in the led suit. Discard without revealing, or tap the hidden contract to expose it. If you reveal, you must play a trump when you hold one.</p>
                 : game.auctionComplete
                 ? <p className="dock-help">The auction is over. Continue above to choose the contract.</p>
                 : game.phase === 'trump'
@@ -1286,7 +1285,7 @@ export default function App() {
               })}
               {sortedHand.length === 0 && <div className="empty-hand">Your cards have been played.</div>}
             </div>
-            {game.seventhCard && game.bidder === 0 && <div className="seventh-note"><Sparkles size={16} aria-hidden="true" /><span>Seventh card set aside: <b><SuitText text={cardText(game.seventhCard)} /></b> - trump is <b>{SUIT_LABEL[game.seventhCard.suit]}</b>, hidden from the table until the first void.</span></div>}
+            {game.seventhCard && game.bidder === 0 && <div className="seventh-note"><Sparkles size={16} aria-hidden="true" /><span>Seventh card set aside: <b><SuitText text={cardText(game.seventhCard)} /></b> - trump is <b>{SUIT_LABEL[game.seventhCard.suit]}</b>, hidden from the table until a void player calls for it.</span></div>}
             {userCanBid && <div className="action-bar">
               <div className="action-copy"><h3>Your bid</h3><p>{game.highBid === null ? 'Open at 16 or pass. Only bid if the hand can support it.' : `Beat the current bid of ${game.highBid}, or pass to leave the auction.`}</p>{preferences.coach && <span className="action-advice">Coach: <SuitText text={insight.action ?? 'Pass'} /></span>}</div>
               <div className="bid-controls">
@@ -1354,11 +1353,11 @@ export default function App() {
         <div className="guide-intro"><div className="guide-large-icon"><BookOpen size={22} /></div><p>Twenty-Nine is a four-player partnership game. You and your partner sit opposite each other. The team that wins the auction chooses trump and must capture enough points to make the contract. The first team to +6 game points wins; a team at −6 loses.</p></div>
         <div className="guide-rule"><span>01</span><div><h3>Learn the ranking</h3><p><strong>J &gt; 9 &gt; A &gt; 10 &gt; K &gt; Q &gt; 8 &gt; 7.</strong> Jacks are worth 3 points, nines 2, aces and tens 1. The other cards score zero.</p></div></div>
         <div className="guide-rule"><span>02</span><div><h3>Bid for a reason</h3><p>You see four cards before the auction. Consider suit strength and length. The usual minimum is 16; a higher bid makes your contract harder.</p></div></div>
-        <div className="guide-rule"><span>03</span><div><h3>Follow suit</h3><p>Play the suit led if you have it. The first player unable to follow reveals trump. From that trick onward, trump can beat another suit. The table enforces follow-suit, so a revoke cannot be played by accident.</p></div></div>
+        <div className="guide-rule"><span>03</span><div><h3>Follow suit</h3><p>Play the suit led if you have it. A player who is void may discard without revealing, or call for trump to be exposed. If they reveal it, they must play a trump when able. Until then, only the led suit can win. The table enforces follow-suit, so a revoke cannot be played by accident.</p></div></div>
         <div className="guide-rule"><span>04</span><div><h3>Declare the royal pair</h3><p>If you still hold the K and Q of trump after your side wins a trick, declare the pair. The bidding side drops its target by 4; the defending side raises the bidding team’s target by 4.</p></div></div>
         <div className="guide-rule"><span>05</span><div><h3>Call the seventh card</h3><p>Instead of naming trump, the bidder can call for the seventh card dealt to them. It sets trump sight unseen and stays out of their hand until trump is revealed. Once revealed, it joins the hand.</p></div></div>
         <div className="guide-rule"><span>06</span><div><h3>Double and redouble</h3><p>After trump is set, the defenders may double the hand to 2 match points. The declaring side may redouble to 4. The contract target does not change.</p></div></div>
-        <div className="guide-rule"><span>07</span><div><h3>Declare Reverse</h3><p>The bidder may invert the ranking to 7 high, J low. <strong>Reverse (no trump)</strong> uses a 2 as a face-down indicator; the first void exposes it, and no royal pair is possible. <strong>Reverse (with trump)</strong> names a suit that still beats other suits, makes the trump 7 the strongest card on the table, and allows the royal pair.</p></div></div>
+        <div className="guide-rule"><span>07</span><div><h3>Declare Reverse</h3><p>The bidder may invert the ranking to 7 high, J low. <strong>Reverse (no trump)</strong> uses a 2 as a face-down indicator; a void player may expose it, and no royal pair is possible. <strong>Reverse (with trump)</strong> names a suit that still beats other suits, makes the trump 7 the strongest card on the table, and allows the royal pair.</p></div></div>
         <div className="guide-rule"><span>08</span><div><h3>Review fairly</h3><p>The coach flags clear opportunities when the visible trick allows a reliable comparison. It does not treat every unlucky outcome as a mistake. While another seat acts, it switches to a table read; after a card lands, that read joins the coach history so you can step back through it.</p></div></div>
         <div className="guide-footnote"><CircleHelp size={14} /><span>Optional rules can be changed in Practice settings. Classic auction; single-hand declarations and the Bangladesh-specific bidding sequence are not implemented.</span></div>
       </div>
@@ -1371,7 +1370,7 @@ export default function App() {
           <h3 className="settings-group-title">Table rules</h3>
           <ToggleRow title="Royal pair (K + Q of trump)" description="After your side wins a trick, declaring the pair moves the target by 4, never below the 16-point opening minimum. Applies to the next hand." checked={preferences.pair} onChange={() => setPreferences(current => ({ ...current, pair: !current.pair }))} />
           <ToggleRow title="Seventh-card trump" description="The bidder may call for the seventh card instead of naming a suit. Applies to the next hand." checked={preferences.seventhCard} onChange={() => setPreferences(current => ({ ...current, seventhCard: !current.seventhCard }))} />
-          <ToggleRow title="Reverse (no trump)" description="Adds a Reverse option to the trump chooser. The 2 indicator stays face down; the first void flips the ranking to 7 high, J low. A royal pair cannot be declared. Applies to the next hand." checked={preferences.reverse} onChange={() => setPreferences(current => ({ ...current, reverse: !current.reverse }))} />
+          <ToggleRow title="Reverse (no trump)" description="Adds a Reverse option to the trump chooser. The 2 indicator stays face down; a void player can reveal it to flip the ranking to 7 high, J low. A royal pair cannot be declared. Applies to the next hand." checked={preferences.reverse} onChange={() => setPreferences(current => ({ ...current, reverse: !current.reverse }))} />
           <ToggleRow title="Reverse (with trump)" description="Adds a reverse option that names a trump suit. The ranking still flips to 7 high, J low, so the trump 7 is the strongest card. A royal pair can be declared. Applies to the next hand." checked={preferences.reverseTrump} onChange={() => setPreferences(current => ({ ...current, reverseTrump: !current.reverseTrump }))} />
           <ToggleRow title="Double & redouble" description="Defenders may double to 2 match points; the declaring side may redouble to 4. Applies to the next hand." checked={preferences.double} onChange={() => setPreferences(current => ({ ...current, double: !current.double }))} />
           <ToggleRow title="Last-trick bonus (+1)" description="The winner of the eighth trick earns one additional point. Applies to the next hand." checked={preferences.lastTrickBonus} onChange={() => setPreferences(current => ({ ...current, lastTrickBonus: !current.lastTrickBonus }))} />

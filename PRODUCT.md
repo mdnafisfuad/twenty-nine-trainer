@@ -26,11 +26,11 @@ Browser only: no account, backend, or API key. One session covers the deal, auct
 
 - Four players in fixed partnerships; the human is South.
 - Simplified classic auction: J > 9 > A > 10 > K > Q > 8 > 7; J = 3, 9 = 2, A/10 = 1; minimum bid 16.
-- Four-card opening deal, auction, trump chosen from the opening four (or the seventh-card option), second deal, and a hidden trump revealed on the first void. The player who exposes the contract must play a trump in that trick if one is available; no-trump Reverse has no trump obligation.
+- Four-card opening deal, auction, trump chosen from the opening four (or the seventh-card option), second deal, and a hidden trump that stays face down until a void player calls for it. A void player may instead discard without revealing. The player who exposes the contract must play a trump in that trick if one is available; no-trump Reverse has no trump obligation.
 - Optional royal pair (K+Q of trump), seventh-card trump, reverse (no-trump ranking flip), reverse with trump, double/redouble, and last-trick bonus; each can be switched off in Practice settings.
 - The completed auction pauses with a Continue button before the declarer chooses the contract.
 - Every completed trick pauses on the table until the player continues, so the four cards can be read before the next lead.
-- The table carries physical objects: a card-stack match scoreboard whose suit mark shows the score's sign, a left-to-right point race with a contract marker, a face-down trump card that flips when revealed, and seat chips with card fans instead of status sentences. When the player is void and trump is still hidden, the trump card is tappable.
+- The table carries physical objects: a card-stack match scoreboard whose suit mark shows the score's sign, a left-to-right point race with a contract marker, a face-down trump card that flips when revealed, and seat chips with card fans instead of status sentences. When the player is void and trump is still hidden, the trump card is tappable to expose it voluntarily; discarding keeps it hidden.
 - Coach advice is kept as a per-hand history that can be stepped through with previous/next controls. The live tip is a hybrid of the visible-card rule and the sampled model.
 - On another seat's turn, the coach switches to a non-actionable table read: what that seat may be trying to do, what the current trick and known voids imply. The explanation of their card then joins the coach history so it can be stepped back through.
 - Suit symbols use consistent ink: hearts and diamonds are red in coach text, event logs, review copy, and card labels; black suits use light ink on dark surfaces.
