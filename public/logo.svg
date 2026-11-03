@@ -1,19 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Twenty-Nine Trainer">
   <defs>
-    <linearGradient id="badge" x1="0" y1="0" x2="0.85" y2="1">
-      <stop offset="0" stop-color="#256149" />
-      <stop offset="0.55" stop-color="#1a4a35" />
-      <stop offset="1" stop-color="#113023" />
-    </linearGradient>
+    <radialGradient id="felt" cx="0.5" cy="0.38" r="0.72">
+      <stop offset="0" stop-color="#2c7052" />
+      <stop offset="0.55" stop-color="#194a35" />
+      <stop offset="1" stop-color="#0a2016" />
+    </radialGradient>
     <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#e6d3a8" />
-      <stop offset="0.5" stop-color="#c7a86a" />
-      <stop offset="1" stop-color="#a7884f" />
+      <stop offset="0" stop-color="#efdcb0" />
+      <stop offset="0.45" stop-color="#c7a86a" />
+      <stop offset="1" stop-color="#9a7c47" />
     </linearGradient>
   </defs>
-  <rect width="512" height="512" fill="#0d0f0d" />
-  <rect x="62" y="46" width="388" height="420" rx="74" fill="url(#badge)" stroke="url(#brass)" stroke-width="14" />
-  <rect x="98" y="82" width="316" height="348" rx="42" fill="none" stroke="#e6d3a8" stroke-opacity="0.42" stroke-width="3" />
-  <text x="256" y="306" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="180" fill="#f2ecdd">29</text>
-  <text x="256" y="402" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="82" fill="#d8bf8e">♠</text>
+  <rect width="512" height="512" fill="url(#felt)" />
+  <circle cx="256" cy="256" r="188" fill="none" stroke="url(#brass)" stroke-width="14" />
+  <circle cx="256" cy="256" r="164" fill="none" stroke="#e6d3a8" stroke-opacity="0.26" stroke-width="2" />
+  <text x="256" y="306" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="176" fill="#f2ecdd">29</text>
+  <text x="256" y="388" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="62" fill="#d8bf8e">♠</text>
 </svg>
