@@ -759,7 +759,14 @@ export default function App() {
           const card = preferences.searchBots
             ? chooseBotCardWithSearch(game, player, { samples: preferences.botSamples })
             : chooseBotCard(game, player)
-          setGame(current => current.version === version ? playCard(current, player, card.id) : current)
+          setGame(current => {
+            if (current.version !== version || !card) return current
+            // Re-check against the live state so a racing render can never make a bot
+            // play out of turn or ignore the led suit. The fallback is the first legal card.
+            const legal = legalCardsFor(current, player)
+            const selected = legal.find(item => item.id === card.id) ?? legal[0]
+            return selected ? playCard(current, player, selected.id) : current
+          })
         }, 520 + Math.random() * 280)
       }
     }
@@ -784,6 +791,17 @@ export default function App() {
   const userStakeTurn = game.phase === 'stake' && game.stakeStage !== null && game.bidder !== null && (
     game.stakeStage === 'defend' ? teamOf(0) !== teamOf(game.bidder) : teamOf(0) === teamOf(game.bidder)
   )
+  const stakeKicker = userStakeTurn ? (game.stakeStage === 'redouble' ? 'Redouble' : 'Double') : 'Stake'
+  const stakeHeading = userStakeTurn
+    ? game.stakeStage === 'redouble' ? 'Redouble to four?' : 'Double the stakes?'
+    : game.stakeStage === 'redouble' ? 'Declaring side is deciding' : 'Defenders are deciding'
+  const stakeDescription = userStakeTurn
+    ? game.stakeStage === 'redouble'
+      ? 'The defenders doubled. Make the hand worth four match points - or leave it at two.'
+      : 'Make the hand worth two match points. The contract target does not change.'
+    : game.stakeStage === 'redouble'
+      ? 'The defenders doubled. The declaring side is deciding whether to redouble to four.'
+      : 'The defending team can double the hand to two match points. If they do, the declaring side can redouble.'
   const userCanReveal = userCanPlay && canExposeContract(game, 0)
   const currentLegal = useMemo(() => userCanPlay ? legalCardsFor(game, 0).map(card => card.id) : [], [game, userCanPlay])
   // Start the sampled comparison automatically on the human's turn so the live tip can
@@ -1251,9 +1269,9 @@ export default function App() {
 
           {game.phase === 'stake' && <section className="stake-panel" aria-label="Stake decision">
             <div className="stake-copy">
-              <span className="stake-kicker">{game.stakeStage === 'redouble' ? 'Redouble' : 'Double'}</span>
-              <h2>{game.stakeStage === 'redouble' ? 'Redouble to four?' : 'Double the stakes?'}</h2>
-              <p>{game.stakeStage === 'redouble' ? 'The defenders doubled. Make the hand worth four match points — or leave it at two.' : 'Make the hand worth two match points. The contract target does not change.'}</p>
+              <span className="stake-kicker">{stakeKicker}</span>
+              <h2>{stakeHeading}</h2>
+              <p>{stakeDescription}</p>
             </div>
             {userStakeTurn ? <div className="stake-actions">
               <button className="button-secondary" onClick={() => humanStake(false)}>{game.stakeStage === 'redouble' ? 'No redouble' : 'Play on'}</button>

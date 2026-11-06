@@ -1438,6 +1438,12 @@ select:disabled { opacity: 0.45; }
   .decision-dock { padding: 14px; }
   .trump-chooser { padding: 16px; }
   .trick-result, .stake-panel { padding: 14px; }
+  .stake-panel { flex-direction: column; align-items: stretch; gap: 12px; }
+  .stake-copy { width: 100%; }
+  .stake-copy p { max-width: none; }
+  .stake-actions { width: 100%; justify-content: space-between; }
+  .stake-actions .button-primary, .stake-actions .button-secondary { flex: 1; min-height: 44px; }
+  .stake-panel .waiting-strip { width: 100%; margin-top: 0; }
   .hand-cards { gap: 1px; padding-top: 12px; }
   .hand-card-wrap .playing-card { width: 40px; height: 57px; }
   .hand-card-wrap .card-corner { left: 4px; top: 3px; }

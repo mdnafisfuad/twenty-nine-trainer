@@ -52,7 +52,7 @@
     </td>
     <td width="33%" valign="top">
       <h3>♦ Bots that think in deals</h3>
-      <p>Each bot samples plausible unseen deals, rolls out every legal card against the same set, and plays the best expected move. No peeking, no random bluffs.</p>
+      <p>Each bot samples plausible unseen deals, rolls out every legal card against the same set, and plays the best expected move. No peeking; card play has no random bluffs.</p>
     </td>
     <td width="33%" valign="top">
       <h3>♥ A table, not a dashboard</h3>
@@ -66,7 +66,7 @@
 **The game**
 - The full flow: four-card opening deal, auction, trump selection, second deal, hidden trump, follow-suit play, eight tricks, and match scoring.
 - Optional rules, each switchable in **Practice settings**: royal pair, seventh-card trump, double and redouble, Reverse (no trump), Reverse with trump, and the last-trick bonus.
-- Follow-suit and the reveal obligation are enforced by the UI, so a revoke or an illegal discard cannot happen by accident.
+- Follow-suit and the reveal obligation are enforced by the UI and re-checked against the live legal set before every bot play, so a revoke or an illegal discard cannot happen by accident.
 - Table cues: auction pauses, trick pauses, trump-reveal announcements, and a floating 29 mark at the centre.
 
 **The table**
@@ -78,7 +78,7 @@
 - Interactive trick timeline, local session statistics, and layouts for phone, tablet, and desktop — down to 320px.
 
 **The brain**
-- **Search-based bots:** partner-aware bidding plus determinized Monte Carlo card play. Once the contract mode is public, the last four tricks are solved exactly with double-dummy minimax.
+- **Search-based bots:** partner-aware bidding with low-level contests, occasional thin pressure bids, and no outbidding a partner, plus determinized Monte Carlo card play. Once the contract mode is public, the last four tricks are solved exactly with double-dummy minimax.
 - **Hybrid coach:** a visible-card rule tip starts every turn; the sampled comparison then upgrades it to a model verdict when there is a clear edge. Close calls keep the rule as the tie-break, and the tip shows both views.
 - **Off-turn table reads:** while someone else is thinking, the coach stops giving card advice and reads the public table instead — contract count, known voids, likely suit plan, and what to watch.
 - **Void ledger:** every exposed void is listed by seat and suit in the Table notes strip, beside the visible-card reading and recent play.

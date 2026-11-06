@@ -360,22 +360,45 @@ export function botBid(state: GameState, player: number): number | null {
   // trump choice, and raising over them only increases the target the team must make.
   if (partnerHigh) return null
 
+  // A deterministic pseudo-random roll keeps bluffs reproducible for a given auction
+  // state. Thin hands are the ones with a playable suit but a sub-16 projection.
+  const roll = (state.handId * 7919 + player * 104729 + state.auctionActions.length * 31 + (state.highBid ?? 0) * 17) % 100
+  const thin = report.advised === 15 && report.power >= 3.6 && report.points >= 4
+  const aggressive = report.points >= 6 || report.pairPotential
+  const pressure = state.consecutivePasses >= 2 ? 10 : 0
+  const bluff = roll < (thin ? 24 : 8) + pressure
+
   if (state.highBid === null) {
-    return report.advised >= 16 ? 16 : null
+    if (report.advised >= 19) return Math.min(maxBid, 17)
+    if (report.advised >= 16) return 16
+    // Occasionally steal a cheap opening with a thin but playable four-card hand.
+    if (thin && bluff) return 16
+    return null
   }
+
   const nextBid = state.highBid + 1
   if (nextBid > maxBid) return null
 
   // A raise needs more than the bare minimum: without a partner bid, the hand should
   // project at least one level above the contract being taken on. A high contested bid
   // gets a further cushion because the opponent's bid is evidence the deal is not soft.
-  // Partner passing is already covered by the missing partner-support discount.
+  // Aggressive hands and partner support earn a one-level discount; the pair can earn one more.
   const opponentHigh = state.bidder !== null && teamOf(state.bidder) !== teamOf(player)
-  const contested = opponentHigh ? (state.highBid >= 20 ? 2 : state.highBid >= 18 ? 1 : 0) : 0
+  const contested = opponentHigh ? (state.highBid >= 21 ? 2 : state.highBid >= 18 ? 1 : 0) : 0
   const partnerSupport = partnerBid > 0 ? 1 : 0
   const pairDiscount = state.rules.pair && report.pairPotential ? 1 : 0
-  const needed = nextBid + (partnerSupport ? 0 : 1) + contested - pairDiscount
+  const aggression = aggressive ? 1 : 0
+  const needed = nextBid + (partnerSupport ? 0 : 1) + contested - pairDiscount - aggression
   if (report.advised >= needed && report.ceiling >= nextBid) return nextBid
+
+  // Pressure raise: one level thin, but only with a real suit and some point density.
+  // This is the thoughtful bluff: it never jumps the auction, and it stops at high levels.
+  const thinRaise = state.highBid <= 18 && report.advised >= nextBid - 1 && report.power >= 3.8 && report.points >= 4
+  if (thinRaise && bluff) return nextBid
+  // Low-level contest: with a playable suit, occasionally take the fight to 17 or 18
+  // rather than conceding the auction on the first opposing bid.
+  const contest = state.highBid <= 17 && report.advised >= state.highBid - 1 && report.power >= 3.9 && report.points >= 3
+  if (contest && roll < 35) return nextBid
   return null
 }
 
@@ -896,9 +919,14 @@ export function botShouldReveal(state: GameState, player: number): boolean {
 
 export function chooseBotCard(state: GameState, player: number): Card {
   const hand = state.hands[player] ?? []
-  const options = legalCardsFor(state, player)
+  let options = legalCardsFor(state, player)
   if (options.length <= 1) return options[0]
   const trick = state.currentTrick
+  // Repeat the follow-suit filter at the policy boundary. The engine and legalCardsFor
+  // already enforce it; this keeps the heuristic honest if either changes later.
+  const ledSuit = trick[0]?.card.suit
+  const canFollowFromHand = !!ledSuit && hand.some(card => card.suit === ledSuit)
+  if (canFollowFromHand) options = options.filter(card => card.suit === ledSuit)
 
   // Trump is live only after someone has called for it. A void discard without a reveal
   // leaves the contract hidden, so do not plan around trumps the seat cannot see.
@@ -1128,6 +1156,11 @@ export function playCard(state: GameState, player: number, cardId: string): Game
   const legal = legalCardsFor(state, player)
   const card = legal.find(c => c.id === cardId)
   if (!card) return state
+  // Belt-and-braces follow-suit guard. legalCardsFor already returns only the led suit
+  // when the player holds it; this keeps that invariant even if a caller passes a card
+  // that was legal before a state transition.
+  const ledSuit = state.currentTrick[0]?.card.suit
+  if (ledSuit && handBefore.some(c => c.suit === ledSuit) && card.suit !== ledSuit) return state
   const isSeventhPlay = state.bidder === player && state.seventhCard?.id === card.id && !state.trumpRevealed
   const trickBefore = [...state.currentTrick]
   const wasRevealed = state.trumpRevealed
